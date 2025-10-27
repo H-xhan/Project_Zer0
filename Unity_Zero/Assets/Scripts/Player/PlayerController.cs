@@ -1,50 +1,75 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
-[RequireComponent(typeof(CharacterController))] // ¹İµå½Ã CharacterController°¡ ÇÊ¿äÇÏ´Ù´Â ¼±¾ğ
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem; // ì‹  Input System ì§€ì›
+#endif
+
+[RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Move")]
-    [SerializeField] private float moveSpeed = 5f;   // °È±â ¼Óµµ
-    [SerializeField] private float jumpHeight = 1.2f; // Á¡ÇÁ ³ôÀÌ(¿øÇÏ¸é 0À¸·Î)
-    [SerializeField] private float gravity = -9.81f;  // Áß·Â °¡¼Óµµ(¾Æ·¡ ¹æÇâÀÌ¹Ç·Î À½¼ö)
+    [Header("Move Settings")]
+    [SerializeField] private float moveSpeed = 5f;      // ì´ë™ ì†ë„
+    [SerializeField] private float jumpHeight = 1.2f;   // ì í”„ ë†’ì´ (ë‹¨ìœ„: ë¯¸í„°)
+    [SerializeField] private float gravity = -9.81f;    // ì¤‘ë ¥ ê°€ì†ë„
+    [SerializeField] private float groundCheckDistance = 0.2f; // ì§€ë©´ íŒì • ê±°ë¦¬
+    [SerializeField] private LayerMask groundMask;      // ì§€ë©´ ë ˆì´ì–´ ì§€ì •ìš©
 
-    private CharacterController controller; // Ãæµ¹/°æ»ç/½ºÅÜÀ» Ã³¸®ÇØÁÖ´Â À¯´ÏÆ¼ ÄÄÆ÷³ÍÆ®
-    private Vector3 velocity;               // ÇöÀç ÇÁ·¹ÀÓÀÇ ¼Óµµ ´©Àû(Æ¯È÷ yÃà Áß·Â/Á¡ÇÁ¿ë)
+    private CharacterController controller;
+    private Vector3 velocity;
+    private bool isGrounded;
 
     private void Awake()
     {
-        controller = GetComponent<CharacterController>(); // °°Àº ¿ÀºêÁ§Æ®¿¡¼­ ÄÄÆ÷³ÍÆ® °¡Á®¿À±â
+        controller = GetComponent<CharacterController>();
     }
 
     private void Update()
     {
-        // 1) ÀÔ·Â ¹Ş±â (Unity ±âº» ÀÔ·Â: Horizontal=A/D, Vertical=W/S)
-        float h = Input.GetAxisRaw("Horizontal"); // -1~1: ¿Ş(-) ¿À¸¥(+)
-        float v = Input.GetAxisRaw("Vertical");   // -1~1: µÚ(-) ¾Õ(+)
+        // 1ï¸âƒ£ ì´ë™ ì…ë ¥ (ì‹  Input System / êµ¬ Input ë‘˜ ë‹¤ ì§€ì›)
+        float h = 0f, v = 0f;
+        bool jumpPressed = false;
 
-        // 2) Ä«¸Ş¶ó ±âÁØ ¹æÇâ ±¸ÇÏ±â(Ä«¸Ş¶ó°¡ ¾øÀ¸¸é ÇÃ·¹ÀÌ¾î ±âÁØ)
-        Vector3 fwd = Camera.main ? Camera.main.transform.forward : transform.forward; // Àü¹æ
-        Vector3 right = Camera.main ? Camera.main.transform.right : transform.right;   // ¿ìÃø
-        fwd.y = 0f; right.y = 0f;      // ¼öÆò¸é Åõ¿µ(»óÇÏ ±â¿ï¾îÁü Á¦°Å)
-        fwd.Normalize(); right.Normalize(); // ´ÜÀ§ º¤ÅÍ·Î Á¤±ÔÈ­
+#if ENABLE_INPUT_SYSTEM
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.aKey.isPressed) h -= 1f;
+            if (kb.dKey.isPressed) h += 1f;
+            if (kb.sKey.isPressed) v -= 1f;
+            if (kb.wKey.isPressed) v += 1f;
+            jumpPressed = kb.spaceKey.wasPressedThisFrame;
+        }
+#else
+        h = Input.GetAxisRaw("Horizontal");
+        v = Input.GetAxisRaw("Vertical");
+        jumpPressed = Input.GetKeyDown(KeyCode.Space);
+#endif
 
-        // 3) ÀÌµ¿ º¤ÅÍ ±¸ÇÏ±â(ÀüÈÄ/ÁÂ¿ì ÀÔ·Â ÇÕÄ¡±â ¡æ Á¤±ÔÈ­ ¡æ ¼Óµµ °ö)
+        // 2ï¸âƒ£ ì¹´ë©”ë¼ ê¸°ì¤€ ì´ë™ ë²¡í„° ê³„ì‚°
+        Vector3 fwd = Camera.main ? Camera.main.transform.forward : transform.forward;
+        Vector3 right = Camera.main ? Camera.main.transform.right : transform.right;
+        fwd.y = 0f; right.y = 0f; // ìˆ˜í‰ ì´ë™ë§Œ
+        fwd.Normalize(); right.Normalize();
         Vector3 move = (fwd * v + right * h).normalized * moveSpeed;
-
-        // 4) ¼öÆò ÀÌµ¿ Àû¿ë(deltaTimeÀ» °öÇØ ÇÁ·¹ÀÓ µ¶¸³)
         controller.Move(move * Time.deltaTime);
 
-        // 5) Áö¸é Ã¼Å© & Á¡ÇÁ Ã³¸®
-        if (controller.isGrounded && velocity.y < 0f)
-            velocity.y = -2f; // ¹Ù´Ú¿¡ µü ºÙ¿©ÁÖ´Â º¸Á¤(0ÀÌ¸é °£È¤ °øÁß ÆÇÁ¤ Æ¦)
+        // 3ï¸âƒ£ ì§€ë©´ íŒì • (ë°”ë‹¥ê³¼ì˜ ê±°ë¦¬ ì²´í¬)
+        isGrounded = Physics.CheckSphere(transform.position + Vector3.down * 0.9f, groundCheckDistance, groundMask);
 
-        if (Input.GetKeyDown(KeyCode.Space) && controller.isGrounded)
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity); // v^2 = 2gh °ø½Ä º¯Çü
+        // ì§€ë©´ì— ë‹¿ìœ¼ë©´ yì†ë„ ë¦¬ì…‹
+        if (isGrounded && velocity.y < 0)
+            velocity.y = -2f;
 
-        // 6) Áß·Â ´©Àû(ÇÁ·¹ÀÓ¸¶´Ù y¼Óµµ °¨¼Ò)
+        // 4ï¸âƒ£ ì í”„ ì…ë ¥
+        if (jumpPressed && isGrounded)
+        {
+            // ì í”„ ì†ë„ ê³„ì‚° (ì—­í•™ ê³µì‹ v = sqrt(2gh))
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
+
+        // 5ï¸âƒ£ ì¤‘ë ¥ ì ìš©
         velocity.y += gravity * Time.deltaTime;
-
-        // 7) ¼öÁ÷ ÀÌµ¿ Àû¿ë
         controller.Move(velocity * Time.deltaTime);
     }
 }
+
