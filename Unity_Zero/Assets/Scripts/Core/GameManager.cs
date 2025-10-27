@@ -1,6 +1,11 @@
 using Unity.VisualScripting;
 using UnityEngine;
 
+// private void OnEnable()  { EventBus.OnPuzzleCleared += HandlePuzzleCleared; }
+// private void OnDisable() { EventBus.OnPuzzleCleared -= HandlePuzzleCleared; }
+// EventBus.RaiseAllRequiredPuzzlesCleared();  // 이 줄도 일단 주석
+
+
 public class GameManager : MonoBehaviour
 {
     // 싱글톤: 어디서든 GameManager.Instance 로 접근
