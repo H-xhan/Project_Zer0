@@ -2249,9 +2249,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemPickup
   item: {fileID: 11400000, guid: cf4fbb496e24e284aac90eb6fe39e79f, type: 2}
   amount: 1
-  pickupKey: 101
-  promptDistance: 2
-  promptText: "E: \uC90D\uAE30"
+  key: 102
+  autoOnTouch: 0
+  rotateY: 45
 --- !u!65 &2143251086
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2361,7 +2361,7 @@ Transform:
   m_GameObject: {fileID: 2143251084}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.3, z: 1.98}
+  m_LocalPosition: {x: 0, y: 0.3, z: 2}
   m_LocalScale: {x: 0.3, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 0
   m_Children: []
