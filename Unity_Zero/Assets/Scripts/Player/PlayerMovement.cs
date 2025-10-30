@@ -8,12 +8,12 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Speed Settings")]
     public float walkSpeed = 3.5f;          // 걷기 속도
-    public float runSpeed = 6.5f;          // 뛰기 속도
+    public float runSpeed = 6.5f;           // 뛰기 속도
     public float rotationSpeed = 8f;        // 회전 스무싱
 
     [Header("Jump & Gravity")]
     public float jumpHeight = 1.2f;         // 점프 높이
-    public float gravity = -20f;         // 중력 가속도
+    public float gravity = -20f;            // 중력 가속도
     public float fallYVelThreshold = -0.1f; // 이 값보다 떨어지면 낙하로 판단
 
     private CharacterController controller;
@@ -32,15 +32,15 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Jump Assist (Buffer & Post-Land Grace)")]
     [SerializeField] float jumpBufferTime = 0.15f;   // 점프 키를 미리 눌러도 유효한 버퍼 시간
-    [SerializeField] float postLandGrace = 0.5f;    // 착지 후 이 시간 동안엔 점프 바로 허용
+    [SerializeField] float postLandGrace = 0.5f;     // 착지 후 이 시간 동안엔 점프 바로 허용
     float jumpBufferTimer = 0f;
     float postLandTimer = 0f;
-
 
     [Header("Stamina")]
     [SerializeField] private PlayerStamina stamina; // 스태미나 참조
 
-
+    private TimeConsumer _time;                     // ⏱️ 시간 차감용 공용 API
+    private Vector3 _lastPos;                       // ⏱️ 지난 프레임 위치(수평 이동거리 계산용)
 
     void Start()
     {
@@ -50,6 +50,9 @@ public class PlayerMovement : MonoBehaviour
         if (!stamina) stamina = GetComponent<PlayerStamina>();
 
         Cursor.lockState = CursorLockMode.Locked;
+
+        _time = FindFirstObjectByType<TimeConsumer>();   // ⏱️ 씬에 존재하는 TimeConsumer 자동 참조
+        _lastPos = transform.position;                   // ⏱️ 첫 프레임 이동거리 폭주 방지용 초기화
     }
 
     void Update()
@@ -63,7 +66,6 @@ public class PlayerMovement : MonoBehaviour
         // 점프 입력 버퍼 (키를 ‘조금 일찍’ 눌러도 저장)
         if (jumpKeyDown) jumpBufferTimer = jumpBufferTime;
 
-
         // 카메라 기준 이동 방향
         Vector3 camF = cameraTransform.forward; camF.y = 0; camF.Normalize();
         Vector3 camR = cameraTransform.right; camR.y = 0; camR.Normalize();
@@ -71,17 +73,23 @@ public class PlayerMovement : MonoBehaviour
         bool hasMoveInput = new Vector2(h, v).sqrMagnitude > 0.0001f;
 
         // ---------- 스프린트 판정(순서 중요!) ----------
-        bool wantSprint = sprintKey && hasMoveInput;                                 // 스프린트 의도
+        bool wantSprint = sprintKey && hasMoveInput;                                  // 스프린트 의도
         bool isSprinting = wantSprint && (stamina == null || stamina.CanStartSprint());// 시작 가능?
         if (isSprinting && stamina != null)
         {
             // 프레임당 소모. 0이 되면 즉시 중단.
             if (!stamina.DrainSprintTick()) isSprinting = false;
         }
-        //스프린트가 아니고, 이동 입력이 있을 때는 '걷기 소모'
+        // 스프린트가 아니고, 이동 입력이 있을 때는 '걷기 소모'
         if (!isSprinting && hasMoveInput && stamina != null)
         {
             stamina.DrainWalkTick(); // 0이 되어도 걷기는 허용, 단 스프린트는 못함
+        }
+
+        // ⏱️ (시간경제) 스프린트 중일 때 초당 추가 시간 소모
+        if (isSprinting && _time != null)
+        {
+            _time.SpendForSprintDelta(Time.deltaTime); // 프레임 기반 가산
         }
 
         // 🔴 위에서 최종 isSprinting이 확정된 뒤에 속도 결정해야 한다!
@@ -115,8 +123,6 @@ public class PlayerMovement : MonoBehaviour
             postLandTimer = postLandGrace; // 착지 직후 0.5초 윈도우 오픈
         }
 
-
-
         // ---------- 점프 ----------
         // 타이머 감소
         jumpCDTimer -= Time.deltaTime;
@@ -136,15 +142,17 @@ public class PlayerMovement : MonoBehaviour
                 velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 anim?.SetTrigger("Jump");
 
+                // ⏱️ (시간경제) 점프 1회 비용
+                _time?.SpendForJump();
+
                 // 타이머/상태 초기화
                 jumpCDTimer = jumpCooldown;
-                jumpBufferTimer = 0f;      // 버퍼 소진
-                coyoteTimer = 0f;      // 공중으로 전환
-                postLandTimer = 0f;      // 착지 그레이스 종료
+                jumpBufferTimer = 0f;   // 버퍼 소진
+                coyoteTimer = 0f;       // 공중으로 전환
+                postLandTimer = 0f;     // 착지 그레이스 종료
                 groundedNow = false;
             }
         }
-
 
         // ---------- 중력 & 수직 이동 ----------
         velocity.y += gravity * Time.deltaTime;
@@ -189,7 +197,6 @@ public class PlayerMovement : MonoBehaviour
             anim.SetBool("IsSprinting", isSprinting);
         }
 
-
         // 감쇠: 멈출 때는 빠르게 스냅
         if (anim)
         {
@@ -197,5 +204,19 @@ public class PlayerMovement : MonoBehaviour
             anim.SetFloat("Speed", speed01, damp, Time.deltaTime);
             anim.SetBool("IsSprinting", isSprinting); // 참고용(전이 조건엔 사용 X)
         }
+
+        // ---------- (시간경제) 이동 거리당 시간 소모 ----------
+        // 이번 프레임의 ‘수평’ 이동거리(m) 계산 후 차감한다.
+        // CharacterController.Move를 두 번 호출(수평/수직)했으므로, 프레임 마지막에 계산하는 게 정확함.
+        if (_time != null)
+        {
+            Vector3 now = transform.position;                 // 현재 위치
+            Vector2 flatDelta = new Vector2(now.x - _lastPos.x, now.z - _lastPos.z); // 수평 거리만
+            float movedMeters = flatDelta.magnitude;           // 이동한 ‘거리’(m)
+            if (movedMeters > 0f)
+                _time.SpendForMove(movedMeters);               // ⏱️ 이동 거리만큼 시간 차감
+            _lastPos = now;                                    // 다음 프레임을 위해 저장
+        }
     }
 }
+

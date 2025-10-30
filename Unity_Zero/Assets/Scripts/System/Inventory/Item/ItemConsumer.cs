@@ -16,6 +16,10 @@ public class ItemConsumer : MonoBehaviour
     {
         if (item == null) return;
 
+        Debug.Log($"Consumed {item.displayName}");
+
+        GetComponent<PlayerHealth>()?.Heal(item.power);
+
         // 간단 규칙 예시: meta에 키워드로 분기하거나, type/파워로 처리
         // 여기선 displayName/meta에 따라 나눠보자
         if (item.type == ItemType.Consumable)
