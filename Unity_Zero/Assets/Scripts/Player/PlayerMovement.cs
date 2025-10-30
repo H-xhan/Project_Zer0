@@ -7,35 +7,49 @@ public class PlayerMovement : MonoBehaviour
     public Transform cameraTransform;
 
     [Header("Speed Settings")]
-    public float walkSpeed = 3.5f;
-    public float runSpeed = 6.5f;
-    public float rotationSpeed = 8f;
+    public float walkSpeed = 3.5f;          // 걷기 속도
+    public float runSpeed = 6.5f;          // 뛰기 속도
+    public float rotationSpeed = 8f;        // 회전 스무싱
 
     [Header("Jump & Gravity")]
-    public float jumpHeight = 1.2f;
-    public float gravity = -20f;
+    public float jumpHeight = 1.2f;         // 점프 높이
+    public float gravity = -20f;         // 중력 가속도
     public float fallYVelThreshold = -0.1f; // 이 값보다 떨어지면 낙하로 판단
 
-    CharacterController controller;
-    Vector3 velocity;          // 수직속도만 담당
-    bool isGrounded, wasGrounded;
+    private CharacterController controller;
+    private Vector3 velocity;               // 수직 속도만 담당
+    private bool lastGrounded;              // 직전 프레임의 접지 상태
 
     [Header("Animation")]
-    [SerializeField] Animator anim;
-    [SerializeField] float speedDamp = 0.1f;
+    [SerializeField] private Animator anim; // Animator
+    [SerializeField] private float speedDamp = 0.1f; // Speed 감쇠(일반)
 
-    [SerializeField] float coyoteTime = 0.12f;   // 땅을 벗어난 직후 잠깐 점프 허용
-    [SerializeField] float jumpCooldown = 0.05f; // 점프 연타 방지
-    float coyoteTimer = 0f;
-    float jumpCDTimer = 0f;
+    [Header("Coyote & Cooldown")]
+    [SerializeField] private float coyoteTime = 0.12f; // 땅을 벗어난 직후 잠깐 점프 허용
+    [SerializeField] private float jumpCooldown = 0.05f; // 점프 연타 방지
+    private float coyoteTimer = 0f;
+    private float jumpCDTimer = 0f;
+
+    [Header("Jump Assist (Buffer & Post-Land Grace)")]
+    [SerializeField] float jumpBufferTime = 0.15f;   // 점프 키를 미리 눌러도 유효한 버퍼 시간
+    [SerializeField] float postLandGrace = 0.5f;    // 착지 후 이 시간 동안엔 점프 바로 허용
+    float jumpBufferTimer = 0f;
+    float postLandTimer = 0f;
+
+
+    [Header("Stamina")]
+    [SerializeField] private PlayerStamina stamina; // 스태미나 참조
+
+
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
         if (!cameraTransform) cameraTransform = Camera.main.transform;
-        Cursor.lockState = CursorLockMode.Locked;
+        if (!anim) anim = GetComponentInChildren<Animator>(true);
+        if (!stamina) stamina = GetComponent<PlayerStamina>();
 
-        if (anim == null) anim = GetComponentInChildren<Animator>(true);
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     void Update()
@@ -44,72 +58,142 @@ public class PlayerMovement : MonoBehaviour
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
         bool sprintKey = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-        bool jumpPressed = Input.GetKeyDown(KeyCode.Space);
+        bool jumpKeyDown = Input.GetKeyDown(KeyCode.Space);
 
-        // 카메라 기준 이동방향
+        // 점프 입력 버퍼 (키를 ‘조금 일찍’ 눌러도 저장)
+        if (jumpKeyDown) jumpBufferTimer = jumpBufferTime;
+
+
+        // 카메라 기준 이동 방향
         Vector3 camF = cameraTransform.forward; camF.y = 0; camF.Normalize();
         Vector3 camR = cameraTransform.right; camR.y = 0; camR.Normalize();
         Vector3 moveDir = (camF * v + camR * h);
         bool hasMoveInput = new Vector2(h, v).sqrMagnitude > 0.0001f;
-        bool isSprinting = sprintKey && hasMoveInput;
+
+        // ---------- 스프린트 판정(순서 중요!) ----------
+        bool wantSprint = sprintKey && hasMoveInput;                                 // 스프린트 의도
+        bool isSprinting = wantSprint && (stamina == null || stamina.CanStartSprint());// 시작 가능?
+        if (isSprinting && stamina != null)
+        {
+            // 프레임당 소모. 0이 되면 즉시 중단.
+            if (!stamina.DrainSprintTick()) isSprinting = false;
+        }
+        //스프린트가 아니고, 이동 입력이 있을 때는 '걷기 소모'
+        if (!isSprinting && hasMoveInput && stamina != null)
+        {
+            stamina.DrainWalkTick(); // 0이 되어도 걷기는 허용, 단 스프린트는 못함
+        }
+
+        // 🔴 위에서 최종 isSprinting이 확정된 뒤에 속도 결정해야 한다!
         float currentSpeed = isSprinting ? runSpeed : walkSpeed;
 
-        // ① 수평 이동(첫 번째 Move)
+        // ---------- 수평 이동 ----------
         Vector3 horizontalMove = moveDir.normalized * currentSpeed * Time.deltaTime;
         controller.Move(horizontalMove);
 
-        // ② 회전
+        // ---------- 회전 ----------
         if (moveDir.sqrMagnitude > 0.0001f)
         {
             Quaternion targetRot = Quaternion.LookRotation(moveDir);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
         }
 
-        // --- Ground 상태 갱신 (Move 이후에도 다시 확인) ---
+        // ---------- 접지 체크 & 코요테 ----------
         bool groundedNow = controller.isGrounded;
         if (groundedNow)
         {
-            coyoteTimer = coyoteTime;                 // 착지하면 버퍼 리필
-            if (velocity.y < 0f) velocity.y = -2f;    // 바닥에 붙이기(떨림 방지)
+            coyoteTimer = coyoteTime;                  // 착지 시 버퍼 리필
+            if (velocity.y < 0f) velocity.y = -2f;     // 바닥에 붙이기(떨림 방지)
         }
         else
         {
-            coyoteTimer -= Time.deltaTime;            // 공중이면 버퍼 감소
+            coyoteTimer -= Time.deltaTime;             // 공중이면 버퍼 감소
         }
 
-        // --- 점프 입력 처리 (버퍼 + 쿨타임) ---
-        jumpCDTimer -= Time.deltaTime;
-        if (jumpPressed && coyoteTimer > 0f && jumpCDTimer <= 0f)
+        if (!lastGrounded && groundedNow)
         {
-            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            if (anim) anim.SetTrigger("Jump");
-            jumpCDTimer = jumpCooldown;               // 연타로 중복점프 방지
-            groundedNow = false;                      // 바로 공중 상태로 전환
-            coyoteTimer = 0f;
+            postLandTimer = postLandGrace; // 착지 직후 0.5초 윈도우 오픈
         }
 
-        // ③ 중력 & 수직 이동(두 번째 Move)
+        // ---------- 점프 ----------
+        // 타이머 감소
+        jumpCDTimer -= Time.deltaTime;
+        jumpBufferTimer -= Time.deltaTime;
+        postLandTimer -= Time.deltaTime;
+
+        // 점프 가능 조건: (접지) 또는 (코요테) 또는 (착지 그레이스)  AND 쿨타임 완료 AND 버퍼에 입력 있음
+        bool canJumpNow = (groundedNow || coyoteTimer > 0f || postLandTimer > 0f) && (jumpCDTimer <= 0f);
+        bool hasBufferedJump = (jumpBufferTimer > 0f);
+
+        if (hasBufferedJump && canJumpNow)
+        {
+            // 스태미나 체크/소모
+            bool ok = (stamina == null) ? true : stamina.TrySpend(stamina.jumpCost);
+            if (ok)
+            {
+                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                anim?.SetTrigger("Jump");
+
+                // 타이머/상태 초기화
+                jumpCDTimer = jumpCooldown;
+                jumpBufferTimer = 0f;      // 버퍼 소진
+                coyoteTimer = 0f;      // 공중으로 전환
+                postLandTimer = 0f;      // 착지 그레이스 종료
+                groundedNow = false;
+            }
+        }
+
+
+        // ---------- 중력 & 수직 이동 ----------
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
 
-        // 낙하/착지 애니 파라미터
-        bool isFalling = velocity.y < -0.1f && !controller.isGrounded;
-        if (anim) anim.SetBool("IsFalling", isFalling);
+        // ---------- 낙하/착지 애니 ----------
+        bool isFalling = velocity.y < fallYVelThreshold && !controller.isGrounded;
+        anim?.SetBool("IsFalling", isFalling);
 
-        // 방금 프레임에 착지했는지 체크 (직전 Move 이후 값으로 판단)
-        if (!groundedNow && controller.isGrounded)
+        // 직전 프레임 공중 → 이번 프레임 접지 = 착지
+        if (!lastGrounded && controller.isGrounded)
         {
-            if (anim) anim.SetTrigger("Land");
+            anim?.SetTrigger("Land");
             if (velocity.y < 0f) velocity.y = -2f;
         }
+        lastGrounded = controller.isGrounded;
 
-        // --- Animator 이동 파라미터 ---
-        float worldSpeed = (moveDir.normalized * currentSpeed).magnitude;
-        float speed01 = Mathf.Clamp01(worldSpeed / runSpeed);
+        // ---------- 애니메이션 파라미터 ----------
+        // --- Animator 이동 파라미터 (스냅 방식: Idle=0, Walk=0.5, Run=1) ---
+        float inputMag = new Vector2(h, v).magnitude;  // 0~1
+        float speed01;
+
+        if (inputMag < 0.05f)          // 멈춤
+        {
+            speed01 = 0f;
+            isSprinting = false;       // 정지 시 스프린트 해제
+        }
+        else if (isSprinting)          // 달림
+        {
+            speed01 = 1f;
+        }
+        else                            // 걷기
+        {
+            speed01 = 0.5f;            // Walk 임계값으로 '딱' 고정
+        }
+
         if (anim)
         {
-            anim.SetFloat("Speed", speed01, speedDamp, Time.deltaTime);
+            // 멈출 때는 더 빠르게 0으로 스냅
+            float damp = (speed01 == 0f) ? 0.03f : speedDamp;
+            anim.SetFloat("Speed", speed01, damp, Time.deltaTime);
             anim.SetBool("IsSprinting", isSprinting);
+        }
+
+
+        // 감쇠: 멈출 때는 빠르게 스냅
+        if (anim)
+        {
+            float damp = (speed01 == 0f) ? 0.03f : speedDamp;
+            anim.SetFloat("Speed", speed01, damp, Time.deltaTime);
+            anim.SetBool("IsSprinting", isSprinting); // 참고용(전이 조건엔 사용 X)
         }
     }
 }
