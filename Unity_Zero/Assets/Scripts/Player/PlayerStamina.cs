@@ -85,4 +85,9 @@ public class PlayerStamina : MonoBehaviour
         return current > 0f;
     }
 
+    public void Recover(float amount) // 소비아이템/이벤트로 즉시 회복
+    {
+        if (amount <= 0f) return;
+
+    }
 }

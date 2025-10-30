@@ -115,6 +115,8 @@ public class PlayerMovement : MonoBehaviour
             postLandTimer = postLandGrace; // 착지 직후 0.5초 윈도우 오픈
         }
 
+
+
         // ---------- 점프 ----------
         // 타이머 감소
         jumpCDTimer -= Time.deltaTime;
