@@ -3,44 +3,52 @@ using System;
 
 public class TimeWallet : MonoBehaviour
 {
-    // 남은 생존 시간(초). 소수점 허용.
+    [SerializeField] private TimeConfig config;
+
     public float CurrentSeconds { get; private set; }
 
-    public event Action<float> OnChanged;     // 남은 시간이 바뀔 때(초)
-    public event Action OnDepleted;           // 0 이하가 되었을 때
+    public event Action OnDepleted;
 
-    [SerializeField] private TimeConfig config;
+    // 남은 시간 숫자 바뀔 때
+    public event Action<float> OnChanged;
+    // 트랜잭션(증/감 & 이유) 알림  → UI 토스트, 로그 등에 사용
+    public event Action<float, string> OnTransaction;
 
     void Awake()
     {
-        if (config == null)
-        {
-            Debug.LogError("[TimeWallet] TimeConfig가 비어있습니다.");
-        }
+        if (!config) config = Resources.Load<TimeConfig>("TimeConfig");
+        if (!config) Debug.LogError("[TimeWallet] TimeConfig가 없습니다.");
     }
 
-    // 초기화: 루프 시작 시 호출
     public void ResetToInitial()
     {
-        CurrentSeconds = Mathf.Max(0, config != null ? config.initialSeconds : 900);
+        CurrentSeconds = Mathf.Max(0, config ? config.initialSeconds : 900);
         OnChanged?.Invoke(CurrentSeconds);
     }
 
-    // 시간 추가(+)
     public void AddSeconds(float sec, string reason = "")
     {
+        if (sec <= 0f) return;
         CurrentSeconds += sec;
-        if (config != null && config.logTransactions)
+
+        // 먼저 트랜잭션 이벤트
+        OnTransaction?.Invoke(sec, reason);
+
+        if (config && config.logTransactions && !string.IsNullOrEmpty(reason))
             Debug.Log($"[TimeWallet] +{sec:F2}s ({reason}), now {CurrentSeconds:F2}s");
+
         OnChanged?.Invoke(CurrentSeconds);
     }
 
-    // 시간 차감(-)
     public void SpendSeconds(float sec, string reason = "")
     {
         if (sec <= 0f) return;
         CurrentSeconds -= sec;
-        if (config != null && config.logTransactions)
+
+        // 먼저 트랜잭션 이벤트
+        OnTransaction?.Invoke(-sec, reason);
+
+        if (config && config.logTransactions && !string.IsNullOrEmpty(reason))
             Debug.Log($"[TimeWallet] -{sec:F2}s ({reason}), now {CurrentSeconds:F2}s");
 
         OnChanged?.Invoke(CurrentSeconds);
@@ -48,7 +56,9 @@ public class TimeWallet : MonoBehaviour
         if (CurrentSeconds <= 0f)
         {
             CurrentSeconds = 0f;
-            OnDepleted?.Invoke(); // 루프 종료/사망 처리 등
+            OnDepleted?.Invoke();
+            // OnDepleted 이벤트를 쓰고 있다면 여기서 호출
+            // OnDepleted?.Invoke();
         }
     }
 }

@@ -18,13 +18,20 @@ public class TimeManager : MonoBehaviour
     {
         if (!wallet) wallet = FindFirstObjectByType<TimeWallet>();
         if (!config) Debug.LogError("[TimeManager] TimeConfig이 필요합니다.");
+
+        if (!config) config = Resources.Load<TimeConfig>("TimeConfig");
+
+        if (!config) Debug.LogError("[TimeManager] TimeConfig를 찾을 수 없습니다. Assets/Resources/TimeConfig.asset 생성해주세요.");
     }
 
     void Start()
     {
+        if (!config)
+            config = Resources.Load<TimeConfig>("TimeConfig");
         // 루프 시작: 초기값 세팅
         wallet.ResetToInitial();
-        upkeepTimer = 0f;
+
+        upkeepTimer = config.periodicUpkeepSeconds;
 
         // 데드 핸들러: 0초 되면 루프 종료 처리
         wallet.OnDepleted += HandleDepleted;
@@ -50,6 +57,8 @@ public class TimeManager : MonoBehaviour
             upkeepTimer = 0f;
             if (config.upkeepFlatCost > 0f)
                 wallet.SpendSeconds(config.upkeepFlatCost, "Periodic upkeep");
+
+            wallet.SpendSeconds(delta, "");
         }
     }
 
