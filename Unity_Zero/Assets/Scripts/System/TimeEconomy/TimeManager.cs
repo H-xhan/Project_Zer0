@@ -1,40 +1,59 @@
 using UnityEngine;
 
-[DefaultExecutionOrder(-100)] // 일찍 업데이트되게
+[DefaultExecutionOrder(-100)]
+[RequireComponent(typeof(TimeWallet))]
 public class TimeManager : MonoBehaviour
 {
+    [Header("Config")]
     [SerializeField] private TimeConfig config;
+
+    [Header("Refs")]
     [SerializeField] private TimeWallet wallet;
 
     [Header("State")]
-    public bool running = true;                  // 일시정지/메뉴용
-    private float zoneMultiplier = 1f;           // 구역 배율(트리거로 변경)
-    private float upkeepTimer;                   // 유지비 타이머
+    public bool running = true;
+    private float zoneMultiplier = 1f;
+    private float upkeepTimer;
 
-    public float CurrentZoneMultiplier => zoneMultiplier;          // UI에서 표기용
-    public float TimeToNextUpkeep => Mathf.Max(0f, (config != null ? config.periodicUpkeepSeconds : 0f) - upkeepTimer);
+    public float CurrentZoneMultiplier => zoneMultiplier;
+    public float TimeToNextUpkeep => Mathf.Max(0f,
+        (config != null ? config.periodicUpkeepSeconds : 0f) - upkeepTimer);
+
+    public TimeWallet Wallet => wallet;
+
+    void Reset()
+    {
+        if (!wallet) wallet = GetComponent<TimeWallet>();
+    }
+
+    void OnValidate()
+    {
+        if (!wallet) wallet = GetComponent<TimeWallet>();
+    }
 
     void Awake()
     {
-        if (!wallet) wallet = FindFirstObjectByType<TimeWallet>();
-        if (!config) Debug.LogError("[TimeManager] TimeConfig이 필요합니다.");
+        if (!wallet) wallet = GetComponent<TimeWallet>();
 
-        if (!config) config = Resources.Load<TimeConfig>("TimeConfig");
+        if (!config)
+            config = Resources.Load<TimeConfig>("TimeConfig");
 
-        if (!config) Debug.LogError("[TimeManager] TimeConfig를 찾을 수 없습니다. Assets/Resources/TimeConfig.asset 생성해주세요.");
+        if (!config)
+            Debug.LogError("[시간 관리자] ⚠️ TimeConfig 파일을 찾을 수 없습니다. 'Assets/Resources/TimeConfig.asset'을 생성해주세요.");
+        else
+            Debug.Log("[시간 관리자] ✅ TimeConfig 로드 완료");
     }
 
     void Start()
     {
-        if (!config)
-            config = Resources.Load<TimeConfig>("TimeConfig");
-        // 루프 시작: 초기값 세팅
+        if (!config) { enabled = false; return; }
+
         wallet.ResetToInitial();
+        upkeepTimer = 0f;
 
-        upkeepTimer = config.periodicUpkeepSeconds;
-
-        // 데드 핸들러: 0초 되면 루프 종료 처리
         wallet.OnDepleted += HandleDepleted;
+
+        Debug.Log("[시간 관리자] 💾 시간 루프 시작됨");
     }
 
     void OnDestroy()
@@ -46,42 +65,37 @@ public class TimeManager : MonoBehaviour
     {
         if (!running || config == null) return;
 
-        // 1) 기본 초당 감산 (구역 배율 반영)
         float delta = Time.deltaTime * config.baseDrainPerSecond * zoneMultiplier;
-        if (delta > 0f) wallet.SpendSeconds(delta, "Base drain");
+        if (delta > 0f) wallet.SpendSeconds(delta, "기본 시간 소모");
 
-        // 2) 주기적 유지비
         upkeepTimer += Time.deltaTime;
         if (upkeepTimer >= config.periodicUpkeepSeconds)
         {
             upkeepTimer = 0f;
-            if (config.upkeepFlatCost > 0f)
-                wallet.SpendSeconds(config.upkeepFlatCost, "Periodic upkeep");
 
-            wallet.SpendSeconds(delta, "");
+            if (config.upkeepFlatCost > 0f)
+                wallet.SpendSeconds(config.upkeepFlatCost, "정기 유지비 지출");
+
+            Debug.Log($"[시간 관리자] 🕒 유지비({config.upkeepFlatCost}s) 차감됨");
         }
     }
 
-    // 위험구역 등에서 배율을 바꿀 때 외부에서 호출
     public void SetZoneMultiplier(float mul)
     {
         zoneMultiplier = Mathf.Max(0f, mul);
+        Debug.Log($"[시간 관리자] 구역 배율 변경됨 → x{zoneMultiplier:0.##}");
     }
 
-    // 루프 종료 시(사망/시간 0) 호출되는 처리
     private void HandleDepleted()
     {
         running = false;
-        Debug.Log("[TimeManager] Time depleted -> 루프 종료/사망 처리 진입");
+        Debug.Log("💀 [시간 관리자] 시간이 모두 소진되었습니다. 루프 종료 또는 사망 처리로 이동합니다.");
 
-        // 루프 세금(저장고에 남아있는 자산 과세 컨셉을 단순화하여,
-        // 다음 루프 시작 시 초기 시간에서 % 차감 같은 방식으로 변형해도 됨)
         if (config.loopTaxRate > 0f)
         {
-            // 여기서는 간단히 로그만 남김(실제 과세는 다음 루프 시작 논리에서 반영 가능)
-            Debug.Log($"[TimeManager] Loop tax would apply: {config.loopTaxRate * 100f:F1}%");
+            Debug.Log($"💰 [시간 관리자] 루프 세금이 적용됩니다: {config.loopTaxRate * 100f:F1}%");
         }
 
-        // TODO: 리스폰/기억 보정/메타 진행 처리 연결
+        // TODO: 이후 루프 재시작/기억 복원 등 처리 연결
     }
 }
