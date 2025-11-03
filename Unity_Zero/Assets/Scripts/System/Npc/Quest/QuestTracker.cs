@@ -95,7 +95,6 @@ public class QuestTracker : MonoBehaviour
     // NPC 상호작용 시 호출: 보상 지급
     public void ClaimReward(QuestGiver from)
     {
-        // 다른 NPC에게서 수령 시도 방지
         if (state != QuestState.CompletedUnclaimed || currentQuest == null)
         {
             ui?.ShowToast("아직 보상을 받을 수 없어요.");
@@ -113,9 +112,18 @@ public class QuestTracker : MonoBehaviour
         Debug.Log($"🎁 [퀘스트] 보상 수령: {currentQuest.title} → 시간 +{sec:0.#}초");
         ui?.ShowToast($"🎁 보상 수령! 시간 +{sec:0.#}초");
 
-        state = QuestState.RewardClaimed;
+        // ★★★ 여기서 먼저 아이디를 뽑아둔다
+        string qId = currentQuest.questId;  // (별칭 id/Id 말고 확실히 questId 사용 권장)
 
-        // 정리(원하면 다음 퀘스트를 위해 초기화)
+        // 보상 이력 기록(있을 때만)
+        var log = FindFirstObjectByType<PlayerQuestLog>();
+        if (log != null && !string.IsNullOrEmpty(qId))
+        {
+            log.MarkCompleted(qId);
+            log.MarkRewardClaimed(qId);
+        }
+
+        // 마지막에 초기화
         currentQuest = null;
         giver = null;
         progress = 0;

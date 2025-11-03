@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c173e7e1222a9954e91e0071e553a5c7, type: 3}
-  m_Name: Quest
+  m_Name: Quest_002
   m_EditorClassIdentifier: Assembly-CSharp::QuestSO
-  questId: Q001
-  title: "\uC9C0\uC810 \uB3C4\uB2EC"
-  description: "\uB9C8\uCEE4 \uC9C0\uC810\uAE4C\uC9C0 \uC774\uB3D9\uD558\uB77C."
-  objectiveType: 0
-  objectiveParam: Zone_A
+  questId: Q002
+  title: "\uBB3C\uC790 \uD68C\uC218"
+  description: "\uCC3D\uACE0 \uAD6C\uC5ED\uC5D0\uC11C \u2018Potion\u2019\uB97C \uC218\uC9D1\uD558\uC138\uC694."
+  objectiveType: 1
+  objectiveParam: Potion
   targetCount: 1
   timeRewardSeconds: 60

@@ -35,7 +35,6 @@ public class ItemPickup : MonoBehaviour
         if (rotateY != 0f)
             transform.Rotate(0f, rotateY * Time.unscaledDeltaTime, 0f, Space.World);
 
-        // 키 픽업은 autoOnTouch가 꺼져 있을 때만
         if (!_inRange || _inventory == null || autoOnTouch) return;
 
         if (Input.GetKeyDown(key))
@@ -50,17 +49,14 @@ public class ItemPickup : MonoBehaviour
         Debug.Log($"[ItemPickup] OnTriggerEnter by {other.name}, tag={other.tag}");
         if (!other.CompareTag("Player")) return;
 
-        // ✅ 먼저 인벤토리 참조를 잡는다 (부모까지 탐색)
         _inventory = other.GetComponentInParent<Inventory>();
         _inRange = true;
 
-        // ✅ 그 다음에 자동 픽업 실행
         if (autoOnTouch) TryPickup();
     }
 
     void OnTriggerExit(Collider other)
     {
-        Debug.Log($"[ItemPickup] OnTriggerExit by {other.name}, tag={other.tag}");
         if (!other.CompareTag("Player")) return;
 
         _inRange = false;
@@ -89,6 +85,15 @@ public class ItemPickup : MonoBehaviour
         if (picked > 0)
         {
             amount = remain;
+
+            // ✅ 퀘스트 시스템 연동 (Collect 퀘스트 체크)
+            var tracker = FindFirstObjectByType<QuestTracker>();
+            if (tracker != null && item != null)
+            {
+                tracker.NotifyCollect(item.name, picked);
+                // item.name → QuestSO.objectiveParam 과 일치해야 함 (예: "Potion")
+            }
+
             if (amount <= 0) Destroy(gameObject);
         }
         else
