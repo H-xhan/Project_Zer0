@@ -17,16 +17,18 @@ public class MovementModule
     // internal state
     private CharacterController _cc;
     private Transform _transform;
+    private StaminaModule _stamina;  // optional
     private Vector3 _input;
     private Vector3 _horizontal;
     private float _vertical;
     private bool _isSprinting;
     private bool _jumpTriggered; // this frame only
 
-    public void Initialize(CharacterController cc, Transform t)
+    public void Initialize(CharacterController cc, Transform t, StaminaModule stamina = null)
     {
         _cc = cc;
         _transform = t;
+        _stamina = stamina;
     }
 
     public void Tick()
@@ -50,13 +52,12 @@ public class MovementModule
 
     void UpdateSprintState()
     {
+        bool hasMoveInput = _input.sqrMagnitude > 0.001f;
         bool wantSprint = Input.GetKey(sprintKey);
-        bool grounded = _cc.isGrounded;
+        bool groundOk = !sprintOnlyOnGround || _cc.isGrounded;
+        bool staminaOk = (_stamina == null) ? true : _stamina.CanSprint();
 
-        if (sprintOnlyOnGround)
-            _isSprinting = wantSprint && grounded && _input.sqrMagnitude > 0.001f;
-        else
-            _isSprinting = wantSprint && _input.sqrMagnitude > 0.001f;
+        _isSprinting = wantSprint && hasMoveInput && groundOk && staminaOk;
     }
 
     void MoveHorizontal()
@@ -101,7 +102,7 @@ public class MovementModule
         _cc.Move(velocity * Time.deltaTime);
     }
 
-    // getters for other modules
+    // getters
     public bool IsSprinting() { return _isSprinting; }
     public bool IsGrounded() { return _cc != null && _cc.isGrounded; }
     public float GetPlanarSpeed() { return _horizontal.magnitude; }
@@ -113,4 +114,5 @@ public class MovementModule
         _jumpTriggered = false;
         return v;
     }
+    public bool HasMoveInput() { return _input.sqrMagnitude > 0.001f; } // expose move state
 }

@@ -5,18 +5,18 @@ public class PlayerAnimModule
 {
     [Header("Animator")]
     public Animator anim;
-    public string paramSpeed = "Speed";        // float
-    public string paramJump = "Jump";          // trigger
-    public string paramIsFalling = "IsFalling";// bool
-    public string paramLand = "Land";          // trigger
-    public string paramIsSprinting = "IsSprinting"; // bool
+    public string paramSpeed = "Speed";         // float
+    public string paramJump = "Jump";           // trigger
+    public string paramIsFalling = "IsFalling"; // bool
+    public string paramLand = "Land";           // trigger
+    public string paramIsSprinting = "IsSprinting"; // bool (optional)
 
     [Header("Tuning")]
     public float speedLerp = 10f;
     public float fallingThreshold = -0.1f;
 
     [Header("Speed scale")]
-    public float speedToParam = 0.25f; // planarSpeed * speedToParam -> 0..1 range
+    public float speedToParam = 0.25f; // planarSpeed * speedToParam -> 0..1
 
     [Header("Debug")]
     public bool logOnceIfAnimatorNull = true;
@@ -42,29 +42,29 @@ public class PlayerAnimModule
             return;
         }
 
-        // --- Speed ---
+        // Speed
         float param = planarSpeed * speedToParam;
         _smoothedSpeed = Mathf.Lerp(_smoothedSpeed, param, speedLerp * dt);
         if (!string.IsNullOrEmpty(paramSpeed))
             anim.SetFloat(paramSpeed, _smoothedSpeed);
 
-        // --- Falling ---
+        // Falling
         bool isFalling = !grounded && vertical < fallingThreshold;
         if (!string.IsNullOrEmpty(paramIsFalling))
             anim.SetBool(paramIsFalling, isFalling);
 
-        // --- Jump ---
+        // Jump
         if (jumpTriggered && !string.IsNullOrEmpty(paramJump))
             anim.SetTrigger(paramJump);
 
-        // --- Land ---
+        // Land
         if (!_wasGrounded && grounded)
         {
             if (!string.IsNullOrEmpty(paramLand))
                 anim.SetTrigger(paramLand);
         }
 
-        // --- Sprint ---
+        // Sprint
         if (!string.IsNullOrEmpty(paramIsSprinting))
             anim.SetBool(paramIsSprinting, isSprinting);
 
