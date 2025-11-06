@@ -12,7 +12,7 @@ public class StaminaModule
     public float sprintDrainPerSecond = 20f;  // 달리기 중 지속 소모
 
     [Header("Instant costs")]
-    public float jumpCost = 15f;              // 점프 1회당 소모(※ Movement에서 TrySpend 호출)
+    public float jumpCost = 15f;              // 점프 1회당 소모
 
     [Header("Regen")]
     public float idleRegenPerSecond = 15f;    // 가만히 있을 때 회복
@@ -28,6 +28,23 @@ public class StaminaModule
     public void Init()
     {
         if (clampOnInit) current = Mathf.Clamp(current, 0f, max);
+    }
+
+    // ▶ PlayerController 인스펙터 값 동기화
+    public void SyncSettings(
+        float _minToSprint,
+        float _sprintDrainPerSecond,
+        float _idleRegenPerSecond,
+        float _moveRegenPerSecond,
+        float _regenDelay,
+        float _jumpCost)
+    {
+        minToSprint = Mathf.Max(0f, _minToSprint);
+        sprintDrainPerSecond = Mathf.Max(0f, _sprintDrainPerSecond);
+        idleRegenPerSecond = Mathf.Max(0f, _idleRegenPerSecond);
+        moveRegenPerSecond = Mathf.Max(0f, _moveRegenPerSecond);
+        regenDelay = Mathf.Max(0f, _regenDelay);
+        jumpCost = Mathf.Max(0f, _jumpCost);
     }
 
     // 매 프레임 호출

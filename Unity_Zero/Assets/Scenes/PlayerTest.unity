@@ -834,14 +834,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 086af560c81299e4fa9c4430e37b0beb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  movement:
-    walkSpeed: 4
-    sprintMultiplier: 1.7
-    sprintKey: 304
-    sprintOnlyOnGround: 1
-    jumpHeight: 1.2
-    gravity: -20
-    groundedStick: -2
   animModule:
     anim: {fileID: 385897376}
     paramSpeed: Speed
@@ -849,9 +841,12 @@ MonoBehaviour:
     paramIsFalling: IsFalling
     paramLand: Land
     paramIsSprinting: IsSprinting
-    speedLerp: 10
-    fallingThreshold: -0.1
     speedToParam: 0.25
+    stopSnapThreshold: 0.05
+    snapOnlyWhenGrounded: 1
+    dampUp: 0.08
+    dampDown: 0.04
+    fallingThreshold: -0.1
     logOnceIfAnimatorNull: 1
   stamina:
     max: 100
@@ -860,9 +855,19 @@ MonoBehaviour:
     sprintDrainPerSecond: 20
     jumpCost: 15
     idleRegenPerSecond: 15
-    regenOnlyWhenIdle: 1
+    moveRegenPerSecond: 5
+    regenDelay: 0.6
     minToSprint: 5
     clampOnInit: 1
+  health:
+    max: 100
+    current: 100
+    useRegen: 0
+    regenPerSecond: 5
+    regenDelay: 2
+    clampOnInit: 1
+    invulnerable: 0
+    invulnTime: 0.2
   inventory:
     slotCount: 20
   inventoryPickup:
@@ -873,19 +878,42 @@ MonoBehaviour:
       m_Bits: 0
     autoRotateItems: 1
     rotateSpeed: 45
-  health:
-    max: 100
-    current: 100
-    useRegen: 0
-    regenPerSecond: 5
-    regenDelay: 2
-    clampOnInit: 1
-    invulnerable: 0
-    invulnTime: 0.2
+  timeSystem: {fileID: 677958697}
   hitOverlay: {fileID: 940609640}
   inventoryUI: {fileID: 1593858430}
   inventoryKey: 9
   animatorSource: {fileID: 385897376}
+  movementTuning:
+    walkSpeed: 4
+    sprintMultiplier: 1.7
+    sprintKey: 304
+    sprintOnlyOnGround: 1
+    jumpHeight: 1.2
+    gravity: -20
+    groundedStick: -2
+    jumpCooldown: 1
+    coyoteTime: 0.1
+    jumpBufferTime: 1
+    stopOnSprintExhaust: 1
+    exhaustStopDuration: 0.2
+  staminaTuning:
+    minToSprint: 5
+    sprintDrainPerSecond: 20
+    idleRegenPerSecond: 15
+    moveRegenPerSecond: 5
+    regenDelay: 0.6
+    jumpCost: 15
+  animTuning:
+    dampUp: 0.08
+    dampDown: 0.04
+    stopSnapThreshold: 0.03
+  healthTuning:
+    max: 100
+    useRegen: 0
+    regenPerSecond: 5
+    regenDelay: 2
+    invulnerable: 0
+    invulnTime: 0.2
 --- !u!143 &385897375
 CharacterController:
   m_ObjectHideFlags: 0
@@ -1352,6 +1380,10 @@ MonoBehaviour:
   initialSeconds: 900
   baseDrainPerSecond: 1
   startRunning: 1
+  walkCostPerSecond: 1
+  sprintCostPerSecond: 2
+  jumpCostOnce: 3
+  actionModule: {fileID: 0}
 --- !u!1 &705478681
 GameObject:
   m_ObjectHideFlags: 0

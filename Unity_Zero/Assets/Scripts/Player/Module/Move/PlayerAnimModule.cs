@@ -17,8 +17,8 @@ public class PlayerAnimModule
     public bool snapOnlyWhenGrounded = true;        // 공중에서는 스냅 안 함
 
     [Header("Damping")]
-    public float dampUp = 0.08f;                    // 가속 시 감쇠(작을수록 빠르게 올라감)
-    public float dampDown = 0.04f;                  // 감속 시 감쇠(작을수록 빠르게 내려감)
+    public float dampUp = 0.08f;                    // 가속 시 감쇠
+    public float dampDown = 0.04f;                  // 감속 시 감쇠
 
     [Header("Falling")]
     public float fallingThreshold = -0.1f;
@@ -31,6 +31,14 @@ public class PlayerAnimModule
     bool _wasGrounded;
 
     public void Init(Animator a) { anim = a; }
+
+    // ▶ PlayerController 인스펙터 값 동기화
+    public void SyncSettings(float _dampUp, float _dampDown, float _stopSnap)
+    {
+        dampUp = _dampUp;
+        dampDown = _dampDown;
+        stopSnapThreshold = _stopSnap;
+    }
 
     public void Tick(float dt, float planarSpeed, bool grounded, float vertical, bool jumpTriggered, bool isSprinting)
     {
@@ -47,11 +55,9 @@ public class PlayerAnimModule
         // 1) Speed 파라미터: 스냅 + 감쇠
         float target = Mathf.Max(0f, planarSpeed) * speedToParam;
 
-        // 정지 스냅: 아주 느리면 바로 0으로
         if ((!snapOnlyWhenGrounded || grounded) && target <= stopSnapThreshold)
             target = 0f;
 
-        // 상승/하강 별 감쇠 적용
         float damp = (target >= _lastSpeedParam) ? dampUp : dampDown;
         if (!string.IsNullOrEmpty(paramSpeed))
             anim.SetFloat(paramSpeed, target, damp, dt);

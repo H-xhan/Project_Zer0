@@ -1,59 +1,104 @@
+using System;
 using UnityEngine;
 
-[System.Serializable]
+[Serializable]
 public class MovementModule
 {
-    [Header("Movement")]
-    public float walkSpeed = 4.0f;
-    public float sprintMultiplier = 1.7f;
-    public KeyCode sprintKey = KeyCode.LeftShift;
-    public bool sprintOnlyOnGround = true;
+    // --- Runtime refs ---
+    private CharacterController cc;
+    private Transform tf;
+    private StaminaModule stamina;
 
-    [Header("Jump")]
-    public float jumpHeight = 1.2f;
-    public float gravity = -20.0f;
-    public float groundedStick = -2.0f;
+    // --- Tunables (컨트롤러에서 주입) ---
+    // Move
+    private float walkSpeed = 4f;
+    private float sprintMultiplier = 1.7f;
+    private KeyCode sprintKey = KeyCode.LeftShift;
+    private bool sprintOnlyOnGround = true;
 
-    [Header("Sprint Exhaust Stop")]
-    public bool stopOnSprintExhaust = true;    // 소진 시 정지할지
-    public float exhaustStopDuration = 0.20f;  // 정지 유지 시간(초)
+    // Jump Physics
+    private float jumpHeight = 1.2f;
+    private float gravity = -20f;
+    private float groundedStick = -2f;
 
-    private float _exhaustStopTimer = 0f;      // 남은 정지 시간
-    private bool _pendingGroundStop = false;  // 공중에서 소진된 경우, 착지 시 정지 예약
+    // Jump Timing
+    private float jumpCooldown = 0.2f;
+    private float coyoteTime = 0.10f;
+    private float jumpBufferTime = 0.10f;
 
-    // internal
-    private CharacterController _cc;
-    private Transform _transform;
-    private StaminaModule _stamina;  // optional
-    private Vector3 _input;
-    private Vector3 _horizontal;
-    private float _vertical;
-    private bool _isSprinting;
-    private bool _jumpTriggered; // expose once-per-frame
+    // Sprint Exhaust Stop
+    private bool stopOnSprintExhaust = true;
+    private float exhaustStopDuration = 0.2f;
 
-    public void Initialize(CharacterController cc, Transform t, StaminaModule stamina = null)
+    // --- State ---
+    private Vector2 moveInput;
+    private Vector3 planarVel;
+    private float verticalVel;
+    private bool grounded;
+    private bool sprinting;
+    private bool jumpTriggered;
+
+    // Timers
+    private float jumpCDTimer = 0f;
+    private float lastGroundedTime = -999f;
+    private float lastJumpPressedTime = -999f;
+    private float exhaustStopTimer = 0f;
+    private bool pendingGroundStop = false;
+
+    // Init
+    public void Initialize(CharacterController controller, Transform root, StaminaModule staminaModule)
     {
-        _cc = cc;
-        _transform = t;
-        _stamina = stamina;
+        cc = controller;
+        tf = root;
+        stamina = staminaModule;
+        verticalVel = 0f;
+        jumpCDTimer = 0f;
     }
 
+    // Inspector → Module
+    public void SyncSettings(
+        // Jump Timing
+        float s_jumpCooldown, float s_coyoteTime, float s_jumpBufferTime,
+        // Move
+        float s_walkSpeed, float s_sprintMultiplier, KeyCode s_sprintKey, bool s_sprintOnlyOnGround,
+        // Jump Physics
+        float s_jumpHeight, float s_gravity, float s_groundedStick,
+        // Exhaust Stop
+        bool s_stopOnExhaust, float s_exhaustStopDuration)
+    {
+        jumpCooldown = Mathf.Max(0f, s_jumpCooldown);
+        coyoteTime = Mathf.Max(0f, s_coyoteTime);
+        jumpBufferTime = Mathf.Max(0f, s_jumpBufferTime);
+
+        walkSpeed = Mathf.Max(0f, s_walkSpeed);
+        sprintMultiplier = Mathf.Max(1f, s_sprintMultiplier);
+        sprintKey = s_sprintKey;
+        sprintOnlyOnGround = s_sprintOnlyOnGround;
+
+        jumpHeight = Mathf.Max(0f, s_jumpHeight);
+        gravity = s_gravity;
+        groundedStick = s_groundedStick;
+
+        stopOnSprintExhaust = s_stopOnExhaust;
+        exhaustStopDuration = Mathf.Max(0f, s_exhaustStopDuration);
+    }
+
+    // Tick
     public void Tick()
     {
-        if (_cc == null || _transform == null) return;
+        if (cc == null || tf == null) return;
 
-        // 소진 정지 타이머 감소
-        if (_exhaustStopTimer > 0f)
-            _exhaustStopTimer -= Time.deltaTime;
+        if (exhaustStopTimer > 0f) exhaustStopTimer -= Time.deltaTime;
+        if (jumpCDTimer > 0f) jumpCDTimer -= Time.deltaTime;
 
         ReadInput();
         UpdateSprintState();
 
-        // ★ 공중에서 소진되었다면, "이번 프레임에 땅을 밟은 경우" 정지 시작
-        if (_pendingGroundStop && _cc.isGrounded)
+        // 공중에서 소진되었으면 착지 시 짧게 정지
+        if (pendingGroundStop && cc.isGrounded)
         {
-            _exhaustStopTimer = Mathf.Max(_exhaustStopTimer, exhaustStopDuration);
-            _pendingGroundStop = false;
+            exhaustStopTimer = Mathf.Max(exhaustStopTimer, exhaustStopDuration);
+            pendingGroundStop = false;
         }
 
         MoveHorizontal();
@@ -61,99 +106,137 @@ public class MovementModule
         ApplyMovement();
     }
 
+    // -------------------- Input --------------------
     void ReadInput()
     {
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-        _input = new Vector3(h, 0f, v);
-        _input = Vector3.ClampMagnitude(_input, 1f);
+        moveInput = new Vector2(h, v).normalized;
+
+        // 점프 버퍼는 "지상" 또는 "하강 중"일 때만 기록 (상승 중 입력은 무시)
+        if (Input.GetButtonDown("Jump"))
+        {
+            bool fallingOrGrounded = grounded || verticalVel <= 0f;
+            if (fallingOrGrounded)
+                lastJumpPressedTime = Time.time;
+        }
     }
 
+    // -------------------- Sprint --------------------
     void UpdateSprintState()
     {
-        bool hasMoveInput = _input.sqrMagnitude > 0.001f;
+        bool hasMoveInput = moveInput.sqrMagnitude > 0.001f;
         bool wantSprint = Input.GetKey(sprintKey);
-        bool groundOk = !sprintOnlyOnGround || _cc.isGrounded;
-        bool staminaOk = (_stamina == null) ? true : _stamina.CanSprint(); // ★ 스태미너 부족이면 스프린트 불가
+        bool groundOk = !sprintOnlyOnGround || cc.isGrounded;
+        bool staminaOk = (stamina == null) ? true : stamina.CanSprint();
 
-        _isSprinting = wantSprint && hasMoveInput && groundOk && staminaOk;
+        sprinting = wantSprint && hasMoveInput && groundOk && staminaOk;
+
+        // 스프린트 중 스태미너 소진 → 강제 정지 트리거
+        if (sprinting && stamina != null && !stamina.CanSprint())
+        {
+            sprinting = false;
+            if (stopOnSprintExhaust)
+            {
+                if (!cc.isGrounded) pendingGroundStop = true; // 공중이면 착지 후 정지
+                else exhaustStopTimer = Mathf.Max(exhaustStopTimer, exhaustStopDuration);
+                moveInput = Vector2.zero; // 급감속
+            }
+        }
     }
 
+    // -------------------- Horizontal --------------------
     void MoveHorizontal()
     {
-        Vector3 fwd = _transform.forward;
-        Vector3 right = _transform.right;
-        fwd.y = 0f; right.y = 0f;
-        fwd.Normalize(); right.Normalize();
+        // Exhaust 정지 중에는 이동 입력 무시
+        Vector2 useInput = (exhaustStopTimer > 0f) ? Vector2.zero : moveInput;
 
-        Vector3 dir = (_exhaustStopTimer > 0f) ? Vector3.zero
-                                               : (fwd * _input.z + right * _input.x);
-        dir = Vector3.ClampMagnitude(dir, 1f);
+        Vector3 fwd = tf.forward; fwd.y = 0f; fwd.Normalize();
+        Vector3 right = tf.right; right.y = 0f; right.Normalize();
 
-        float speed = walkSpeed * (_isSprinting ? sprintMultiplier : 1f);
-        _horizontal = dir * speed; // 수평 속도
+        Vector3 dir = (fwd * useInput.y + right * useInput.x);
+        float speed = walkSpeed * (sprinting ? sprintMultiplier : 1f);
+        planarVel = dir * speed;
     }
 
+    // -------------------- Jump / Gravity --------------------
     void JumpAndGravity()
     {
-        bool grounded = _cc.isGrounded;
-        _jumpTriggered = false;
+        grounded = cc.isGrounded;
+        jumpTriggered = false;
+
+        if (grounded) lastGroundedTime = Time.time;
 
         if (grounded)
         {
-            if (_vertical < groundedStick) _vertical = groundedStick;
+            if (verticalVel < groundedStick) verticalVel = groundedStick;
 
-            // 정지 타이머 동안 "점프 입력"만 막고, 중력은 그대로
-            if (_exhaustStopTimer <= 0f && Input.GetButtonDown("Jump"))
-            {
-                bool staminaOk = true;
-                if (_stamina != null && _stamina.jumpCost > 0f)
-                    staminaOk = _stamina.TrySpend(_stamina.jumpCost);
+            bool buffered = (Time.time - lastJumpPressedTime) <= jumpBufferTime;
+            bool cdReady = (jumpCDTimer <= 0f);
 
-                if (staminaOk)
-                {
-                    float g = Mathf.Abs(gravity);
-                    _vertical = Mathf.Sqrt(2f * g * Mathf.Max(0.01f, jumpHeight));
-                    _jumpTriggered = true;
-                }
-            }
+            if (exhaustStopTimer <= 0f && buffered && cdReady)
+                TryJump();
         }
         else
         {
-            // ★ 공중에서는 항상 중력 적용 (멈추지 않게)
-            _vertical += gravity * Time.deltaTime;
+            bool withinCoyote = (Time.time - lastGroundedTime) <= coyoteTime;
+            bool buffered = (Time.time - lastJumpPressedTime) <= jumpBufferTime;
+            bool cdReady = (jumpCDTimer <= 0f);
+
+            if (exhaustStopTimer <= 0f && withinCoyote && buffered && cdReady)
+                TryJump();
+
+            verticalVel += gravity * Time.deltaTime;
         }
     }
 
-    void ApplyMovement()
+    void TryJump()
     {
-        Vector3 velocity = new Vector3(_horizontal.x, _vertical, _horizontal.z);
-        _cc.Move(velocity * Time.deltaTime);
+        bool staminaOk = (stamina == null || stamina.TrySpend(stamina.jumpCost));
+        if (!staminaOk) return;
+
+        DoJump();
     }
 
-    // getters
-    public bool IsSprinting() { return _isSprinting; }
-    public bool IsGrounded() { return _cc != null && _cc.isGrounded; }
-    public float GetPlanarSpeed() { return _horizontal.magnitude; }
-    public Vector3 GetMoveDirection() { return _horizontal.normalized; }
-    public float GetVerticalVelocity() { return _vertical; }
-    public bool ConsumeJumpTriggered() { bool v = _jumpTriggered; _jumpTriggered = false; return v; }
-    public bool HasMoveInput() { return _input.sqrMagnitude > 0.001f; }
+    void DoJump()
+    {
+        float g = Mathf.Abs(gravity);
+        verticalVel = Mathf.Sqrt(2f * g * Mathf.Max(0.01f, jumpHeight));
+        jumpTriggered = true;
+        jumpCDTimer = jumpCooldown;
+
+        // ★ 버퍼 즉시 소모: 착지 후 ‘자동 점프’ 방지
+        lastJumpPressedTime = -999f;
+    }
+
+    // -------------------- Apply --------------------
+    void ApplyMovement()
+    {
+        Vector3 vel = new Vector3(planarVel.x, verticalVel, planarVel.z);
+        cc.Move(vel * Time.deltaTime);
+    }
+
+    // -------------------- Queries --------------------
+    public bool HasMoveInput() => moveInput.sqrMagnitude > 0.001f;
+    public bool IsSprinting() => sprinting;
+    public bool IsGrounded() => grounded;
+    public float GetPlanarSpeed() => planarVel.magnitude;
+    public float GetVerticalVelocity() => verticalVel;
+
+    public bool ConsumeJumpTriggered()
+    {
+        bool v = jumpTriggered;
+        jumpTriggered = false;
+        return v;
+    }
 
     public void ForceStopSprint()
     {
-        _isSprinting = false;
-
+        sprinting = false;
         if (!stopOnSprintExhaust) return;
 
-        // 공중이면 바로 멈추지 말고 "착지 때" 멈추도록 예약
-        if (_cc != null && !_cc.isGrounded)
-        {
-            _pendingGroundStop = true; // 다음에 땅 밟는 프레임에 정지 시작
-        }
-        else
-        {
-            _exhaustStopTimer = Mathf.Max(_exhaustStopTimer, exhaustStopDuration);
-        }
+        if (!cc.isGrounded) pendingGroundStop = true;
+        else exhaustStopTimer = Mathf.Max(exhaustStopTimer, exhaustStopDuration);
+        moveInput = Vector2.zero;
     }
 }
