@@ -7,7 +7,7 @@ public class MovementModule
     // --- Runtime refs ---
     private CharacterController cc;
     private Transform tf;
-    private StaminaModule stamina;
+    private EfficiencyModule efficiency;
 
     // --- Tunables (컨트롤러에서 주입) ---
     // Move
@@ -46,11 +46,11 @@ public class MovementModule
     private bool pendingGroundStop = false;
 
     // Init
-    public void Initialize(CharacterController controller, Transform root, StaminaModule staminaModule)
+    public void Initialize(CharacterController controller, Transform root, EfficiencyModule efficiencyModule)
     {
         cc = controller;
         tf = root;
-        stamina = staminaModule;
+        efficiency = efficiencyModule;
         verticalVel = 0f;
         jumpCDTimer = 0f;
     }
@@ -128,21 +128,9 @@ public class MovementModule
         bool hasMoveInput = moveInput.sqrMagnitude > 0.001f;
         bool wantSprint = Input.GetKey(sprintKey);
         bool groundOk = !sprintOnlyOnGround || cc.isGrounded;
-        bool staminaOk = (stamina == null) ? true : stamina.CanSprint();
 
-        sprinting = wantSprint && hasMoveInput && groundOk && staminaOk;
-
-        // 스프린트 중 스태미너 소진 → 강제 정지 트리거
-        if (sprinting && stamina != null && !stamina.CanSprint())
-        {
-            sprinting = false;
-            if (stopOnSprintExhaust)
-            {
-                if (!cc.isGrounded) pendingGroundStop = true; // 공중이면 착지 후 정지
-                else exhaustStopTimer = Mathf.Max(exhaustStopTimer, exhaustStopDuration);
-                moveInput = Vector2.zero; // 급감속
-            }
-        }
+        // 효율로 스프린트 막지 않는다. (시간만 더 쓰게 할 것)
+        sprinting = wantSprint && hasMoveInput && groundOk;
     }
 
     // -------------------- Horizontal --------------------
@@ -192,8 +180,11 @@ public class MovementModule
 
     void TryJump()
     {
-        bool staminaOk = (stamina == null || stamina.TrySpend(stamina.jumpCost));
-        if (!staminaOk) return;
+        // 효율은 점프 비용을 "기록"만 하고, 점프 자체는 항상 허용
+        if (efficiency != null)
+        {
+            efficiency.TrySpend(efficiency.jumpCost);
+        }
 
         DoJump();
     }
@@ -205,7 +196,7 @@ public class MovementModule
         jumpTriggered = true;
         jumpCDTimer = jumpCooldown;
 
-        // ★ 버퍼 즉시 소모: 착지 후 ‘자동 점프’ 방지
+        // 버퍼 즉시 소모: 착지 후 ‘자동 점프’ 방지
         lastJumpPressedTime = -999f;
     }
 

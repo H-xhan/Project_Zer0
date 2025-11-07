@@ -12,29 +12,39 @@ public class TimeActionCostModule : MonoBehaviour
         ctrl = controller;                              // 허브 주입
     }
 
-    public void SpendForWalkDelta(float deltaTime)      // 걷는 중 매 프레임 호출
+    public void SpendForWalkDelta(float deltaTime)
     {
-        if (ctrl == null || !ctrl.IsRunning) return;    // 작동중이 아니면 무시
-        if (ctrl.walkCostPerSecond <= 0f || deltaTime <= 0f) return; // 비용/시간 체크
+        if (ctrl == null || !ctrl.IsRunning) return;
+        if (ctrl.walkCostPerSecond <= 0f || deltaTime <= 0f) return;
 
-        float spend = ctrl.walkCostPerSecond * deltaTime; // 초당 → 프레임당
-        ctrl.SpendSeconds(spend, "Walk");                 // 허브 API로 차감
+        // 기본 걷기 비용 × 걷기용 효율 배율
+        float mul = ctrl.GetWalkCostMultiplier();
+        float spend = ctrl.walkCostPerSecond * deltaTime * mul;
+
+        ctrl.SpendSeconds(spend, "Walk");
     }
 
-    public void SpendForSprintDelta(float deltaTime)    // 뛰는 중 매 프레임 호출
+    public void SpendForSprintDelta(float deltaTime)
     {
         if (ctrl == null || !ctrl.IsRunning) return;
         if (ctrl.sprintCostPerSecond <= 0f || deltaTime <= 0f) return;
 
-        float spend = ctrl.sprintCostPerSecond * deltaTime; // 초당 → 프레임당
-        ctrl.SpendSeconds(spend, "Sprint");                 // 허브 API로 차감
-    }
+        // 기본 스프린트 비용 × 스프린트용 효율 배율
+        float mul = ctrl.GetSprintCostMultiplier();
+        float spend = ctrl.sprintCostPerSecond * deltaTime * mul;
 
-    public void SpendForJumpEvent()                      // 점프 성공 시 1회 호출
+        ctrl.SpendSeconds(spend, "Sprint");
+    }
+    public void SpendForJumpEvent()
     {
         if (ctrl == null || !ctrl.IsRunning) return;
         if (ctrl.jumpCostOnce <= 0f) return;
 
-        ctrl.SpendSeconds(ctrl.jumpCostOnce, "Jump");    // 허브 API로 차감
+        // 기본 점프 비용 × 점프용 효율 배율
+        float mul = ctrl.GetJumpCostMultiplier();
+        float spend = ctrl.jumpCostOnce * mul;
+
+        ctrl.SpendSeconds(spend, "Jump");
     }
 }
+
