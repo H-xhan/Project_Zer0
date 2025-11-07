@@ -14,12 +14,10 @@ public class QuestReachZone : MonoBehaviour
     [Tooltip("한 번만 완료 처리할지 여부")]
     public bool completeOnlyOnce = true;
 
-    // 완료 처리 여부
     bool _completed;
 
     private void Reset()
     {
-        // 존은 트리거 콜라이더 사용
         var col = GetComponent<Collider>();
         col.isTrigger = true;
     }
@@ -42,5 +40,7 @@ public class QuestReachZone : MonoBehaviour
 
         log.CompleteQuest(targetQuest);
         _completed = true;
+
+        Debug.Log($"[QuestReachZone] {targetQuest.name} 목표 지점 도달, 퀘스트 완료");
     }
 }

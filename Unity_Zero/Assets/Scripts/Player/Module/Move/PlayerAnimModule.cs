@@ -22,6 +22,16 @@ public class PlayerAnimModule
     [Tooltip("스프린트 여부 파라미터 이름 (bool)")]
     public string paramIsSprinting = "IsSprinting";
 
+    [Header("Turn")]
+    [Tooltip("턴 파라미터 이름 (float)")]
+    public string paramTurn = "Turn";
+
+    [Tooltip("턴 여부 파라미터 이름 (bool)")]
+    public string paramIsTurning = "IsTurning";
+
+    [Tooltip("턴으로 판단할 최소 입력값 절대값")]
+    public float turnThreshold = 0.25f;
+
     [Header("Speed Param")]
     [Tooltip("실제 속도를 애니메이터 파라미터로 변환하는 스케일 값")]
     public float speedToParam = 0.25f;
@@ -43,17 +53,14 @@ public class PlayerAnimModule
     [Tooltip("이 값보다 아래 속도면 낙하로 판단")]
     public float fallingThreshold = -0.1f;
 
-    // 내부 상태: 마지막 속도 값, 지상 여부
     float _lastSpeedParam;
     bool _wasGrounded;
 
-    // 초기 애니메이터 설정
     public void Init(Animator a)
     {
         anim = a;
     }
 
-    // PlayerController에서 설정값 동기화 시 사용할 수 있는 메서드
     public void SyncSettings(float dampUpValue, float dampDownValue, float stopSnap)
     {
         dampUp = dampUpValue;
@@ -61,7 +68,6 @@ public class PlayerAnimModule
         stopSnapThreshold = stopSnap;
     }
 
-    // 매 프레임 애니메이션 업데이트
     public void Tick(
         float dt,
         float planarSpeed,
@@ -74,7 +80,7 @@ public class PlayerAnimModule
         if (!anim)
             return;
 
-        // 이동 속도 파라미터 계산
+        // Speed
         float target = Mathf.Max(0f, planarSpeed) * speedToParam;
 
         if ((!snapOnlyWhenGrounded || grounded) && target <= stopSnapThreshold)
@@ -87,23 +93,51 @@ public class PlayerAnimModule
 
         _lastSpeedParam = target;
 
-        // 낙하 상태 플래그
+        // Falling
         bool isFalling = !grounded && verticalVelocity < fallingThreshold;
         if (!string.IsNullOrEmpty(paramIsFalling))
             anim.SetBool(paramIsFalling, isFalling);
 
-        // 점프 트리거
+        // Jump
         if (jumpTriggered && !string.IsNullOrEmpty(paramJump))
             anim.SetTrigger(paramJump);
 
-        // 착지 트리거
+        // Land
         if (!_wasGrounded && grounded && !string.IsNullOrEmpty(paramLand))
             anim.SetTrigger(paramLand);
 
-        // 스프린트 여부
+        // Sprint
         if (!string.IsNullOrEmpty(paramIsSprinting))
             anim.SetBool(paramIsSprinting, isSprinting);
 
         _wasGrounded = grounded;
+    }
+
+    private float _turnSmooth; // 내부 보간용
+
+    // 회전 입력 기반 Turn 애니메이션 업데이트 
+
+    public void UpdateTurn(float rawTurnInput, float planarSpeed, bool grounded)
+    {
+        if (!anim)
+            return;
+
+        if (string.IsNullOrEmpty(paramTurn) || string.IsNullOrEmpty(paramIsTurning))
+            return;
+
+        // 마우스 입력 안정화 (감도 조절)
+        float targetTurn = Mathf.Clamp(rawTurnInput * 0.7f, -1f, 1f);
+        if (Mathf.Abs(targetTurn) < 0.05f)
+            targetTurn = 0f;
+
+        // 부드럽게 보간 (회전 전환 완화)
+        _turnSmooth = Mathf.Lerp(_turnSmooth, targetTurn, Time.deltaTime * 6f);
+
+        // 제자리 상태에서만 턴 활성화
+        bool isIdle = planarSpeed < 0.1f;
+        bool isTurning = grounded && isIdle && Mathf.Abs(_turnSmooth) > turnThreshold;
+
+        anim.SetFloat(paramTurn, _turnSmooth);
+        anim.SetBool(paramIsTurning, isTurning);
     }
 }

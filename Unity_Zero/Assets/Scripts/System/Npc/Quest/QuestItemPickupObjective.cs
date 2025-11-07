@@ -21,14 +21,12 @@ public class QuestItemPickupObjective : MonoBehaviour
     [Tooltip("트리거에 닿는 즉시 자동 픽업할지 여부")]
     public bool autoPickupOnTouch = false;
 
-    // 상태 관리용
     bool _playerInRange;
     bool _pickedUp;
     PlayerController _player;
 
     private void Reset()
     {
-        // 픽업 오브젝트는 트리거 사용
         var col = GetComponent<Collider>();
         col.isTrigger = true;
     }
@@ -70,7 +68,6 @@ public class QuestItemPickupObjective : MonoBehaviour
             TryPickup();
     }
 
-    // 퀘스트 진행 조건 확인 후 아이템 지급 및 완료 처리
     void TryPickup()
     {
         if (_pickedUp)
@@ -80,20 +77,23 @@ public class QuestItemPickupObjective : MonoBehaviour
         if (targetQuest == null || _player.questLog == null)
             return;
 
-        // 퀘스트를 실제로 받은 상태가 아니면 처리하지 않음
+        // 퀘스트를 실제로 받은 상태인지 확인
         if (!_player.questLog.IsQuestActive(targetQuest))
             return;
 
-        // 인벤토리에 추가
+        // 인벤토리에 아이템 추가 시도
         if (item != null && amount > 0 && _player.inventory != null)
         {
             bool added = _player.inventory.TryAdd(item, amount);
             if (!added)
                 return;
+
+            Debug.Log($"[QuestItemPickupObjective] {targetQuest.name} 목표 아이템 획득: {item.name} x{amount}");
         }
 
         // 퀘스트 완료 처리
         _player.questLog.CompleteQuest(targetQuest);
+        Debug.Log($"[QuestItemPickupObjective] {targetQuest.name} 완료 조건 충족, 퀘스트 완료");
 
         _pickedUp = true;
         Destroy(gameObject);

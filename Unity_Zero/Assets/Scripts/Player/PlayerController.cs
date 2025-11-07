@@ -272,7 +272,7 @@ public class PlayerController : MonoBehaviour
 
         bool sprinting = movement.IsSprinting();
 
-        // 애니메이션 업데이트
+        // 애니메이션 업데이트 (Speed, Jump, Fall, Land, Sprint)
         animModule.Tick(
             Time.deltaTime,
             movement.GetPlanarSpeed(),
@@ -281,6 +281,14 @@ public class PlayerController : MonoBehaviour
             jumpTrig,
             sprinting
         );
+
+        // Turn 애니메이션 업데이트 (마우스 X 기준)
+        float mouseX = Input.GetAxisRaw("Mouse X");
+        animModule.UpdateTurn(
+            mouseX,
+            movement.GetPlanarSpeed(),
+            movement.IsGrounded()
+            );
 
         // 시간 자원 소모 처리 (행동 기준)
         if (timeSystem != null)
