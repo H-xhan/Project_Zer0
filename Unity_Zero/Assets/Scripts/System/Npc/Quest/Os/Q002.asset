@@ -9,13 +9,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c173e7e1222a9954e91e0071e553a5c7, type: 3}
-  m_Name: Quest_002
+  m_Script: {fileID: 11500000, guid: a3cc10d68aaa0e540957ca43d1bc96dc, type: 3}
+  m_Name: Q002
   m_EditorClassIdentifier: Assembly-CSharp::QuestSO
   questId: Q002
-  title: "\uBB3C\uC790 \uD68C\uC218"
-  description: "\uCC3D\uACE0 \uAD6C\uC5ED\uC5D0\uC11C \u2018Potion\u2019\uB97C \uC218\uC9D1\uD558\uC138\uC694."
-  objectiveType: 1
-  objectiveParam: Potion
-  targetCount: 1
-  timeRewardSeconds: 60
+  title: "\uC9C0\uC815 \uC704\uCE58\uC5D0\uC11C \uC544\uC774\uD15C \uD68C\uC218"
+  description: 
+  isTimed: 0
+  isDangerQuest: 0
