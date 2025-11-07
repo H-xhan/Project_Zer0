@@ -5,44 +5,63 @@ using System.Collections.Generic;
 public class InventoryPickupModule
 {
     [Header("Settings")]
+    [Tooltip("아이템 줍기 입력 키")]
     public KeyCode pickupKey = KeyCode.F;
-    public float pickupRange = 2.0f;       // 감지 반경
-    public LayerMask itemLayer;            // 아이템 레이어
+
+    [Tooltip("아이템 감지 반경")]
+    public float pickupRange = 2.0f;
+
+    [Tooltip("아이템이 속한 레이어 마스크")]
+    public LayerMask itemLayer;
 
     [Header("FX")]
+    [Tooltip("감지된 아이템을 자동 회전시킬지 여부")]
     public bool autoRotateItems = true;
+
+    [Tooltip("아이템 자동 회전 속도")]
     public float rotateSpeed = 45f;
 
-    // internal references
-    private Transform _player;
-    private InventoryModule _inventory;
+    // 플레이어 위치 참조
+    Transform _player;
 
-    // 캐시에 가까운 아이템 저장
-    private List<ItemPickupTarget> _nearItems = new List<ItemPickupTarget>();
+    // 인벤토리 참조
+    InventoryModule _inventory;
 
+    // 근처 아이템 캐시 목록
+    readonly List<ItemPickupTarget> _nearItems = new List<ItemPickupTarget>();
+
+    // 초기 설정: PlayerController에서 호출
     public void Init(Transform player, InventoryModule inv)
     {
         _player = player;
         _inventory = inv;
     }
 
+    // 매 프레임 업데이트: PlayerController에서 Tick 호출
     public void Tick()
     {
-        if (_player == null || _inventory == null) return;
+        if (_player == null || _inventory == null)
+            return;
 
-        // 주변 아이템 탐색
         FindNearbyItems();
 
-        // 입력 감지
+        // 입력으로 가장 가까운 아이템 줍기
         if (Input.GetKeyDown(pickupKey))
             TryPickupClosest();
     }
 
+    // 주변 아이템 탐색 및 회전 이펙트 처리
     void FindNearbyItems()
     {
         _nearItems.Clear();
 
-        Collider[] hits = Physics.OverlapSphere(_player.position, pickupRange, itemLayer, QueryTriggerInteraction.Collide);
+        Collider[] hits = Physics.OverlapSphere(
+            _player.position,
+            pickupRange,
+            itemLayer,
+            QueryTriggerInteraction.Collide
+        );
+
         foreach (var hit in hits)
         {
             var target = hit.GetComponent<ItemPickupTarget>();
@@ -50,7 +69,6 @@ public class InventoryPickupModule
                 _nearItems.Add(target);
         }
 
-        // 시각적 효과 (회전 등)
         if (autoRotateItems && _nearItems.Count > 0)
         {
             foreach (var t in _nearItems)
@@ -61,16 +79,20 @@ public class InventoryPickupModule
         }
     }
 
+    // 가장 가까운 아이템을 찾아 인벤토리에 추가
     void TryPickupClosest()
     {
-        if (_nearItems.Count == 0) return;
+        if (_nearItems.Count == 0)
+            return;
 
         ItemPickupTarget closest = null;
         float minDist = float.MaxValue;
 
         foreach (var t in _nearItems)
         {
-            if (t == null) continue;
+            if (t == null)
+                continue;
+
             float dist = Vector3.Distance(_player.position, t.transform.position);
             if (dist < minDist)
             {
@@ -79,13 +101,11 @@ public class InventoryPickupModule
             }
         }
 
-        if (closest != null)
-        {
-            bool ok = _inventory.TryAdd(closest.item, closest.amount);
-            if (ok)
-            {
-                Object.Destroy(closest.gameObject);
-            }
-        }
+        if (closest == null)
+            return;
+
+        bool added = _inventory.TryAdd(closest.item, closest.amount);
+        if (added)
+            Object.Destroy(closest.gameObject);
     }
 }

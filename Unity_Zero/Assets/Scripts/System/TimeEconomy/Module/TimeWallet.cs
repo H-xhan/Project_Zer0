@@ -1,46 +1,59 @@
-using UnityEngine;
 using System;
+using UnityEngine;
 
-/// 남은 시간을 보관하고 변경을 알리는 순수 런타임 클래스
+/// 남은 시간을 관리하고 변경 이벤트를 제공하는 런타임 클래스
 public class TimeWallet
 {
-    public float CurrentSeconds { get; private set; } // 현재 보유 시간(초)
+    // 현재 남은 시간(초)
+    public float CurrentSeconds { get; private set; }
 
-    // 이벤트: 값 변경, 바닥(0초) 도달
-    public event Action<float> OnChanged;             // 값이 바뀔 때 (새 값)
-    public event Action OnDepleted;                   // 0초가 되었을 때
+    // 값 변경 및 0 도달 이벤트
+    public event Action<float> OnChanged;
+    public event Action OnDepleted;
 
-    public TimeWallet(float initialSeconds)           // 생성자: 시작 시간 세팅
+    public TimeWallet(float initialSeconds)
     {
-        CurrentSeconds = Mathf.Max(0f, initialSeconds); // 음수 방지
-        OnChanged?.Invoke(CurrentSeconds);               // 초기 알림(필요 시)
+        CurrentSeconds = Mathf.Max(0f, initialSeconds);
+        OnChanged?.Invoke(CurrentSeconds);
+        if (CurrentSeconds <= 0f)
+            OnDepleted?.Invoke();
     }
 
-    public void Reset(float seconds)                  // 임의의 값으로 리셋
+    // 특정 값으로 리셋
+    public void Reset(float seconds)
     {
-        CurrentSeconds = Mathf.Max(0f, seconds);        // 음수 방지
-        OnChanged?.Invoke(CurrentSeconds);              // 변경 알림
-        if (CurrentSeconds <= 0f) OnDepleted?.Invoke(); // 바로 0이면 소진 이벤트
+        CurrentSeconds = Mathf.Max(0f, seconds);
+        OnChanged?.Invoke(CurrentSeconds);
+        if (CurrentSeconds <= 0f)
+            OnDepleted?.Invoke();
     }
 
-    public void Add(float seconds, string reason = "") // 시간 지급(+) 
+    // 시간 추가
+    public void Add(float seconds, string reason = "")
     {
-        if (seconds <= 0f) return;                      // 방어
-        CurrentSeconds += seconds;                      // 더하기
-        OnChanged?.Invoke(CurrentSeconds);              // 알림
+        if (seconds <= 0f)
+            return;
+
+        CurrentSeconds += seconds;
+        OnChanged?.Invoke(CurrentSeconds);
     }
 
-    public void Spend(float seconds, string reason = "")// 시간 차감(-)
+    // 시간 차감
+    public void Spend(float seconds, string reason = "")
     {
-        if (seconds <= 0f) return;                      // 방어
-        CurrentSeconds -= seconds;                      // 빼기
-        if (CurrentSeconds <= 0f)                       // 바닥 체크
+        if (seconds <= 0f)
+            return;
+
+        CurrentSeconds -= seconds;
+
+        if (CurrentSeconds <= 0f)
         {
-            CurrentSeconds = 0f;                        // 하한 보정
-            OnChanged?.Invoke(CurrentSeconds);          // 알림
-            OnDepleted?.Invoke();                       // 소진 이벤트
-            return;                                     // 종료
+            CurrentSeconds = 0f;
+            OnChanged?.Invoke(CurrentSeconds);
+            OnDepleted?.Invoke();
+            return;
         }
-        OnChanged?.Invoke(CurrentSeconds);              // 일반 알림
+
+        OnChanged?.Invoke(CurrentSeconds);
     }
 }

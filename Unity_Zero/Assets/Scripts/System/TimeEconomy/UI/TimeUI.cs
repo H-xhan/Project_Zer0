@@ -1,39 +1,43 @@
 using UnityEngine;
 using TMPro;
 
-/// 플레이 화면에 보유 시간을 표시하는 HUD
-/// - TimeSystemController에서 남은 시간을 읽어와 mm:ss로 표시
-/// - 값이 바뀔 때마다 이벤트로 자동 갱신
+/// 남은 시간을 mm:ss 형식으로 표시하는 HUD
 public class TimeUI : MonoBehaviour
 {
     [Header("References")]
-    public TimeSystemController timeSystem;     // 시간 시스템 허브
-    public TextMeshProUGUI textTimer;           // TMP 텍스트 오브젝트
+    [Tooltip("시간 시스템 허브 (비워두면 자동 탐색)")]
+    public TimeSystemController timeSystem;
 
-    private void Start()
+    [Tooltip("시간 텍스트를 표시할 TMP UI")]
+    public TextMeshProUGUI textTimer;
+
+    private void OnEnable()
     {
-        // 허브가 지정 안 되어 있으면 자동으로 찾음
-        if (!timeSystem)
+        if (timeSystem == null)
             timeSystem = FindFirstObjectByType<TimeSystemController>();
 
-        // 이벤트 구독
         if (timeSystem != null)
         {
-            // TimeWallet이 초기화되어 있는지 확인
-            var field = typeof(TimeSystemController).GetField("_wallet", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var wallet = field?.GetValue(timeSystem) as TimeWallet;
-            if (wallet != null)
-                wallet.OnChanged += UpdateTimerText;
+            timeSystem.OnTimeChanged += UpdateTimerText;
+            UpdateTimerText(timeSystem.CurrentSeconds);
         }
-
-        // 시작 시 즉시 갱신
-        UpdateTimerText(timeSystem != null ? timeSystem.CurrentSeconds : 0f);
+        else
+        {
+            UpdateTimerText(0f);
+        }
     }
 
-    // 이벤트로 호출됨
+    private void OnDisable()
+    {
+        if (timeSystem != null)
+            timeSystem.OnTimeChanged -= UpdateTimerText;
+    }
+
+    // 남은 시간 값을 UI에 반영
     private void UpdateTimerText(float seconds)
     {
-        if (textTimer == null) return;
+        if (textTimer == null)
+            return;
 
         seconds = Mathf.Max(0f, seconds);
         int minutes = Mathf.FloorToInt(seconds / 60f);

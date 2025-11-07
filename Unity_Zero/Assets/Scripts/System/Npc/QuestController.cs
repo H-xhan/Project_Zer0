@@ -7,42 +7,53 @@ public class QuestController : MonoBehaviour
     public class QuestStep
     {
         [Header("퀘스트 데이터")]
+        [Tooltip("이 스텝에서 시작되거나 완료를 확인할 퀘스트")]
         public QuestSO quest;
 
-        [Header("보상 - 시간")]
+        [Header("시간 보상")]
+        [Tooltip("퀘스트 완료 시 지급할 시간(초)")]
         public float rewardTimeSeconds;
 
-        [Header("보상 - 아이템 (선택)")]
+        [Header("아이템 보상 (선택)")]
+        [Tooltip("퀘스트 완료 시 지급할 아이템")]
         public ItemSO rewardItem;
+
+        [Tooltip("아이템 보상 개수")]
         public int rewardItemAmount = 1;
     }
 
-    [Header("퀘스트 체인 (순서대로)")]
+    [Header("퀘스트 체인")]
+    [Tooltip("순서대로 진행될 퀘스트 스텝 목록")]
     public QuestStep[] questSteps;
 
     [Header("상호작용 설정")]
+    [Tooltip("NPC와 상호작용하여 퀘스트를 시작/진행하는 키")]
     public KeyCode interactKey = KeyCode.F;
 
     [Header("연동 시스템")]
-    public PlayerController playerController;       // Player 하나만 바라보는 구조
-    public TimeSystemController timeSystem;         // 없으면 PlayerController에서 가져옴
+    [Tooltip("플레이어 컨트롤러 (비워두면 자동 탐색)")]
+    public PlayerController playerController;
 
-    private bool _playerInRange;
-    private bool[] _rewardGiven;
+    [Tooltip("시간 시스템 (비워두면 PlayerController에서 참조)")]
+    public TimeSystemController timeSystem;
 
-    void Awake()
+    // 플레이어 상호작용 범위 여부
+    bool _playerInRange;
+
+    // 각 스텝의 보상 지급 여부
+    bool[] _rewardGiven;
+
+    private void Awake()
     {
-        //  더 이상 isTrigger 강제 설정 안 함 
-        // 충돌 막는 콜라이더와 상호작용 트리거를 분리해서 쓰는 걸 추천.
-
         if (questSteps == null)
             questSteps = new QuestStep[0];
 
         _rewardGiven = new bool[questSteps.Length];
     }
 
-    void Start()
+    private void Start()
     {
+        // 플레이어 자동 참조
         if (playerController == null)
         {
             var playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -50,15 +61,17 @@ public class QuestController : MonoBehaviour
                 playerController = playerObj.GetComponent<PlayerController>();
         }
 
+        // 시간 시스템 자동 참조
         if (timeSystem == null && playerController != null)
             timeSystem = playerController.timeSystem;
     }
 
-    void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(Collider other)
     {
-        // 태그 대신 PlayerController를 부모까지 검색해서 찾기
+        // PlayerController가 부모에 있는지 확인
         var pc = other.GetComponentInParent<PlayerController>();
-        if (pc == null) return;
+        if (pc == null)
+            return;
 
         _playerInRange = true;
 
@@ -66,41 +79,42 @@ public class QuestController : MonoBehaviour
             playerController = pc;
     }
 
-    void OnTriggerExit(Collider other)
+    private void OnTriggerExit(Collider other)
     {
         var pc = other.GetComponentInParent<PlayerController>();
-        if (pc == null) return;
+        if (pc == null)
+            return;
 
         if (pc == playerController)
             _playerInRange = false;
     }
 
-    void Update()
+    private void Update()
     {
-        if (!_playerInRange) return;
-        if (questSteps == null || questSteps.Length == 0) return;
-        if (playerController == null || playerController.questLog == null) return;
+        if (!_playerInRange)
+            return;
+        if (questSteps == null || questSteps.Length == 0)
+            return;
+        if (playerController == null || playerController.questLog == null)
+            return;
 
         if (Input.GetKeyDown(interactKey))
             HandleInteraction();
     }
 
-    private void HandleInteraction()
+    // 상호작용 시 퀘스트 시작/체인 진행 처리
+    void HandleInteraction()
     {
         var log = playerController.questLog;
 
         int latestCompletedIndex = GetLatestCompletedIndex(log);
         int activeIndex = GetActiveIndex(log);
 
-        // 진행 중 퀘스트가 있으면: 안내만
+        // 이미 진행 중인 퀘스트가 있으면 체인 로직만 유지 (대화 등은 별도 구현)
         if (activeIndex >= 0)
-        {
-            var step = questSteps[activeIndex];
-            Debug.Log($"[QuestController] 진행 중: {step.quest.title}");
             return;
-        }
 
-        // 직전 퀘스트 완료 후 → 보상 + 다음 퀘
+        // 직전 스텝 완료 상태인 경우: 보상 지급 후 다음 스텝 시작
         if (latestCompletedIndex >= 0 && latestCompletedIndex < questSteps.Length)
         {
             if (!_rewardGiven[latestCompletedIndex])
@@ -110,57 +124,57 @@ public class QuestController : MonoBehaviour
             }
 
             int nextIndex = latestCompletedIndex + 1;
+
+            // 다음 퀘스트가 있으면 시작
             if (nextIndex < questSteps.Length)
             {
                 var nextStep = questSteps[nextIndex];
                 if (nextStep.quest != null && !log.IsQuestCompleted(nextStep.quest))
-                {
                     log.StartQuest(nextStep.quest);
-                    Debug.Log($"[QuestController] 다음 퀘스트 시작: {nextStep.quest.title}");
-                }
             }
             else
             {
-                //더 이상 줄 퀘스트 없으면 체인 완전 종료 → 카메라 락 해제
+                // 체인 마지막까지 완료되면 카메라 락 해제
                 log.SetCameraLock(false);
-                Debug.Log("[QuestController] 모든 퀘스트 체인 완료 / CameraLock OFF");
             }
 
             return;
         }
 
+        // 아직 아무것도 안 한 상태라면 첫 퀘스트 시작
         if (latestCompletedIndex < 0 && questSteps.Length > 0)
         {
             var first = questSteps[0];
             if (first.quest != null)
             {
                 log.StartQuest(first.quest);
-
-                // 이 체인 시작하는 순간 카메라 락 켜기
                 log.SetCameraLock(true);
-
-                Debug.Log($"[QuestController] 첫 퀘스트 시작: {first.quest.title} / CameraLock ON");
             }
         }
     }
 
-    private int GetLatestCompletedIndex(PlayerQuestLog log)
+    // 가장 마지막으로 완료된 스텝 인덱스
+    int GetLatestCompletedIndex(PlayerQuestLog log)
     {
         int latest = -1;
+
         for (int i = 0; i < questSteps.Length; i++)
         {
             var q = questSteps[i].quest;
-            if (q == null) break;
+            if (q == null)
+                break;
 
             if (log.IsQuestCompleted(q))
                 latest = i;
             else
                 break;
         }
+
         return latest;
     }
 
-    private int GetActiveIndex(PlayerQuestLog log)
+    // 현재 진행 중인 스텝 인덱스
+    int GetActiveIndex(PlayerQuestLog log)
     {
         for (int i = 0; i < questSteps.Length; i++)
         {
@@ -168,29 +182,29 @@ public class QuestController : MonoBehaviour
             if (q != null && log.IsQuestActive(q))
                 return i;
         }
+
         return -1;
     }
 
-    private void GrantReward(int index)
+    // 퀘스트 보상 지급 처리
+    void GrantReward(int index)
     {
-        if (index < 0 || index >= questSteps.Length) return;
+        if (index < 0 || index >= questSteps.Length)
+            return;
+
         var step = questSteps[index];
 
+        // 시간 보상
         if (timeSystem != null && step.rewardTimeSeconds > 0f)
-        {
             timeSystem.AddSeconds(step.rewardTimeSeconds, "QuestReward");
-            Debug.Log($"[QuestController] 시간 보상 +{step.rewardTimeSeconds}초 지급");
-        }
 
+        // 아이템 보상
         if (playerController != null &&
             playerController.inventory != null &&
             step.rewardItem != null &&
             step.rewardItemAmount > 0)
         {
-            bool added = playerController.inventory.TryAdd(step.rewardItem, step.rewardItemAmount);
-            Debug.Log($"[QuestController] 아이템 보상 {step.rewardItem.name} x{step.rewardItemAmount} 지급 (성공: {added})");
+            playerController.inventory.TryAdd(step.rewardItem, step.rewardItemAmount);
         }
-
-        Debug.Log($"[QuestController] 퀘스트 보상 지급 완료 (Step {index + 1})");
     }
 }

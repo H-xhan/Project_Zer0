@@ -1,23 +1,21 @@
 using System;
 
-// ¡Ø GameManager°¡ ³×ÀÓ½ºÆäÀÌ½º°¡ ¾ø´Ù¸é ÀÌ ÆÄÀÏµµ ³×ÀÓ½ºÆäÀÌ½º¸¦ µÎÁö ¸¶¼¼¿ä.
-// µÑ ´Ù ³×ÀÓ½ºÆäÀÌ½º°¡ ÀÖÀ¸¸é "°°Àº ³×ÀÓ½ºÆäÀÌ½º"·Î ¸ÂÃß¸é µË´Ï´Ù.
-
+/// ì „ì—­ ì´ë²¤íŠ¸ ì „ë‹¬ìš© ê°„ë‹¨í•œ ì´ë²¤íŠ¸ ë²„ìŠ¤
 public static class EventBus
 {
-    // ÆÛÁñ Å¬¸®¾î½Ã ÆÛÁñID¸¦ ºê·ÎµåÄ³½ºÆ®
+    // í¼ì¦ í´ë¦¬ì–´ ì•Œë¦¼ (í¼ì¦ ID ì „ë‹¬)
     public static event Action<string> OnPuzzleCleared;
 
-    // ¸ğµç ÇÊ¼ö ÆÛÁñ Å¬¸®¾î½Ã ¾Ë¸²
+    // ëª¨ë“  í•„ìˆ˜ í¼ì¦ í´ë¦¬ì–´ ì•Œë¦¼
     public static event Action OnAllRequiredPuzzlesCleared;
 
-    // ÆÛÁñ 1°³ Å¬¸®¾î ¾Ë¸² ¸Ş¼­µå
+    // í¼ì¦ í´ë¦¬ì–´ ë°œìƒ ì‹œ í˜¸ì¶œ
     public static void RaisePuzzleCleared(string puzzleId)
     {
         OnPuzzleCleared?.Invoke(puzzleId);
     }
 
-    // ¸ğµç ÇÊ¼ö ÆÛÁñ Å¬¸®¾î ¾Ë¸² ¸Ş¼­µå
+    // ëª¨ë“  í•„ìˆ˜ í¼ì¦ í´ë¦¬ì–´ ë°œìƒ ì‹œ í˜¸ì¶œ
     public static void RaiseAllRequiredPuzzlesCleared()
     {
         OnAllRequiredPuzzlesCleared?.Invoke();

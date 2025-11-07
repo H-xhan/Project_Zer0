@@ -1,33 +1,31 @@
-using Unity.VisualScripting;
 using UnityEngine;
 
-// private void OnEnable()  { EventBus.OnPuzzleCleared += HandlePuzzleCleared; }
-// private void OnDisable() { EventBus.OnPuzzleCleared -= HandlePuzzleCleared; }
-// EventBus.RaiseAllRequiredPuzzlesCleared();  // ÀÌ ÁÙµµ ÀÏ´Ü ÁÖ¼®
-
-
+/// ê°„ë‹¨í•œ ì „ì—­ ê²Œì„ ìƒíƒœ ê´€ë¦¬ ì˜ˆì‹œ (í¼ì¦, ì œí•œ ì‹œê°„ ë“±)
 public class GameManager : MonoBehaviour
 {
-    // ½Ì±ÛÅæ: ¾îµğ¼­µç GameManager.Instance ·Î Á¢±Ù
+    // ì „ì—­ ì ‘ê·¼ìš© ì‹±ê¸€í†¤ ì¸ìŠ¤í„´ìŠ¤
     public static GameManager Instance { get; private set; }
 
-    // ½ºÅ×ÀÌÁö ÀüÃ¼ Á¦ÇÑ ½Ã°£(ÃÊ)
+    [Header("Stage Time Limit")]
+    [Tooltip("ìŠ¤í…Œì´ì§€ ì œí•œ ì‹œê°„(ì´ˆ)")]
     [SerializeField] private float stageTimeLimit = 300f;
 
-    // °ø°³¿ë ÀĞ±â Àü¿ë Å¸ÀÌ¸Ó(³²Àº ½Ã°£ UI¿¡¼­ Ç¥½Ã)
+    [Tooltip("í˜„ì¬ ë‚¨ì€ ì‹œê°„(ì½ê¸° ì „ìš©)")]
     public float RemainingTime { get; private set; }
 
-    // ÆÛÁñ Àü¿ª ¼º°ø ¿©ºÎ(¿¹: ¸ğµç ÇÊ¼ö ÆÛÁñ ¿Ï·á ½Ã true)
+    [Header("Puzzle State")]
+    [Tooltip("ëª¨ë“  í•„ìˆ˜ í¼ì¦ì´ í´ë¦¬ì–´ë˜ì—ˆëŠ”ì§€ ì—¬ë¶€")]
     public bool AllRequiredPuzzlesCleared { get; private set; }
 
     private void Awake()
     {
-        // ½Ì±ÛÅæ º¸Àå
+        // ì‹±ê¸€í†¤ ì„¤ì •
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
@@ -36,7 +34,6 @@ public class GameManager : MonoBehaviour
 
     private void OnEnable()
     {
-        // ÆÛÁñ ¿Ï·á ÀÌº¥Æ® ±¸µ¶
         EventBus.OnPuzzleCleared += HandlePuzzleCleared;
     }
 
@@ -47,23 +44,32 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        // ½Ã°£ °¨¼Ò
-        RemainingTime -= Time.deltaTime;
-        if (RemainingTime <= 0f)
+        // ì œí•œ ì‹œê°„ ê°ì†Œ
+        if (RemainingTime > 0f)
         {
-            RemainingTime = 0f;
-            // ½Ã°£ Á¾·á ½Ã Ã³¸®(½ÇÆĞ ¿¬Ãâ, Àç½ÃÀÛ µî)
-            Debug.Log("[GameManager] Time Up! Stage Failed.");
-            // ÇÊ¿ä ½Ã ¾À ¸®·Îµå or °á°ú UI È£Ãâ
+            RemainingTime -= Time.deltaTime;
+            if (RemainingTime <= 0f)
+            {
+                RemainingTime = 0f;
+                HandleTimeUp();
+            }
         }
     }
 
+    // í¼ì¦ í´ë¦¬ì–´ ì•Œë¦¼ ì²˜ë¦¬
     private void HandlePuzzleCleared(string puzzleId)
     {
-        Debug.Log($"[GameManager] Puzzle Cleared: {puzzleId}");
-        // °£´Ü ·ÎÁ÷: ÇÊ¼ö ÆÛÁñÀÌ 1°³ »ÓÀÌ¶ó°í °¡Á¤(È®Àå °¡´É)
+        // í•„ìš”í•œ ê²½ìš° puzzleId ê¸°ë°˜ ì¡°ê±´ ì²˜ë¦¬ ê°€ëŠ¥
         AllRequiredPuzzlesCleared = true;
-        // Àü¿ªÀ¸·Î "¹® ¿­¸²" °°Àº ÀÌº¥Æ® ½î°í ½ÍÀ¸¸é ¿©±â¼­ ¹ßÇà
+
+        // ëª¨ë“  í•„ìˆ˜ í¼ì¦ ì™„ë£Œ ì´ë²¤íŠ¸ í˜¸ì¶œ (í™•ì¥ ì‹œ ì¡°ê±´ ì²´í¬í•˜ì—¬ í˜¸ì¶œ)
         EventBus.RaiseAllRequiredPuzzlesCleared();
+    }
+
+    // ì‹œê°„ ì¢…ë£Œ ì‹œ ì²˜ë¦¬ (ì”¬ ë¦¬ë¡œë“œ, ì‹¤íŒ¨ UI ë“± ì—°ê²° ì§€ì )
+    private void HandleTimeUp()
+    {
+        // ì‹¤ì œ ê²Œì„ ë¡œì§ì— ë§ê²Œ êµ¬í˜„
+        Debug.Log("[GameManager] Time Up");
     }
 }

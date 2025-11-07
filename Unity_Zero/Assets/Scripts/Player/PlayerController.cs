@@ -1,117 +1,172 @@
 using UnityEngine;
-using static PlayerController;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    // ===== 내부 모듈 (인스펙터에서 숨김, 코드 내에서만 사용) =====
-    [HideInInspector] public MovementModule movement = new MovementModule();              // 이동 모듈
-    [HideInInspector] public PlayerAnimModule animModule = new PlayerAnimModule();        // 애니메이션 모듈
-    [HideInInspector] public EfficiencyModule efficiency = new EfficiencyModule();        // 효율(스태미너 대체) 모듈
+    // 플레이어 동작을 담당하는 내부 모듈 인스턴스 (인스펙터 비노출)
+    [HideInInspector] public MovementModule movement = new MovementModule();
+    [HideInInspector] public PlayerAnimModule animModule = new PlayerAnimModule();
+    [HideInInspector] public EfficiencyModule efficiency = new EfficiencyModule();
 
-    // ===== 외부 시스템 =====
     [Header("External Systems")]
-    public InventoryModule inventory;                                                     // 인벤토리 시스템
-    public InventoryPickupModule inventoryPickup;                                         // 아이템 줍기 시스템
-    public TimeSystemController timeSystem;                                               // 시간 경제/생존 시간 시스템(핵심)
+    [Tooltip("플레이어 인벤토리 시스템 참조")]
+    public InventoryModule inventory;
 
-    [Header("Quest / State (Optional)")]
-    public PlayerQuestLog questLog;                                                       // 퀘스트 상태 확인용 (없으면 비워둬도 됨)
+    [Tooltip("아이템 상호작용을 처리하는 픽업 모듈")]
+    public InventoryPickupModule inventoryPickup;
 
-    // ===== 카메라 / 시점 설정 =====
+    [Tooltip("시간 자원을 관리하는 핵심 시스템")]
+    public TimeSystemController timeSystem;
+
+    [Header("Quest (Optional)")]
+    [Tooltip("카메라 잠금, 진행 상태 등을 확인하는 퀘스트 로그")]
+    public PlayerQuestLog questLog;
+
     [Header("Camera / View Settings")]
-    public CameraRigMouseLookTPS cameraRig;                                               // 카메라 리그 참조
-    public CameraRigMouseLookTPS.CameraMode defaultCameraMode = CameraRigMouseLookTPS.CameraMode.FirstPerson; // 기본 시점
-    public KeyCode viewToggleKey = KeyCode.V;                                             // 시점 전환 키
-    public bool allowThirdPersonToggle = true;                                            // 3인칭 토글 허용 여부
-    public bool restrictThirdPersonDuringQuest = true;                                    // 퀘스트 진행 중 3인칭 금지
+    [Tooltip("플레이어 시점을 제어하는 카메라 리그")]
+    public CameraRigMouseLookTPS cameraRig;
 
-    // ===== UI & 참조 =====
+    [Tooltip("게임 시작 시 사용할 기본 시점 모드")]
+    public CameraRigMouseLookTPS.CameraMode defaultCameraMode =
+        CameraRigMouseLookTPS.CameraMode.FirstPerson;
+
+    [Tooltip("1인칭 / 3인칭 시점을 전환하는 입력 키")]
+    public KeyCode viewToggleKey = KeyCode.V;
+
+    [Tooltip("시점 전환 기능 사용 여부")]
+    public bool allowThirdPersonToggle = true;
+
+    [Tooltip("특정 퀘스트 상황에서 3인칭 전환을 제한할지 여부")]
+    public bool restrictThirdPersonDuringQuest = true;
+
     [Header("UI / References")]
-    public HitOverlayUI hitOverlay;                                                       // 피격 화면 오버레이
-    public GameObject inventoryUI;                                                        // 인벤토리 UI 루트
-    public KeyCode inventoryKey = KeyCode.Tab;                                            // 인벤토리 토글 키
-    public Animator animatorSource;                                                       // 애니메이터 소스
+    [Tooltip("피격 시 화면에 표시되는 오버레이 UI")]
+    public HitOverlayUI hitOverlay;
 
-    private CharacterController _cc;                                                      // 캐릭터컨트롤러 캐시
-    private bool _inventoryOpen;                                                          // 인벤토리 열림 여부
+    [Tooltip("인벤토리 UI 루트 오브젝트")]
+    public GameObject inventoryUI;
 
-    [Header("Debug")]
-    public bool debugEfficiency = true;
-    private float _dbgNextTime = 0f;
+    [Tooltip("인벤토리 UI 열기/닫기 키")]
+    public KeyCode inventoryKey = KeyCode.Tab;
 
-    // ===== 인스펙터에서 조절할 수 있는 튜닝값 =====
+    [Tooltip("플레이어 애니메이터 (비워두면 자식에서 검색)")]
+    public Animator animatorSource;
+
+    // 이동과 관련된 실제 물리 이동을 처리하는 컴포넌트
+    private CharacterController _cc;
+
+    // 인벤토리 UI 열림 여부
+    private bool _inventoryOpen;
+
+    // 이동 관련 튜닝 구조체 (인스펙터에서 조절)
     [System.Serializable]
     public struct MovementTuning
     {
-        [Header("이동 관련")]
-        [Tooltip("걷기 속도 (기본 이동 속도)")] public float walkSpeed;
-        [Tooltip("스프린트 시 이동 속도 배수 (1.7 = 70% 빠름)")] public float sprintMultiplier;
-        [Tooltip("스프린트 키 설정")] public KeyCode sprintKey;
-        [Tooltip("지상에서만 스프린트 가능 여부")] public bool sprintOnlyOnGround;
+        [Header("이동 속도")]
+        [Tooltip("걷기 속도")]
+        public float walkSpeed;
 
-        [Header("점프 물리 설정")]
-        [Tooltip("점프 높이 (m 단위)")] public float jumpHeight;
-        [Tooltip("중력 가속도 (-값이 커질수록 빠르게 낙하)")] public float gravity;
-        [Tooltip("지면에 붙는 정도 (음수로 유지)")] public float groundedStick;
+        [Tooltip("스프린트 시 속도 배수")]
+        public float sprintMultiplier;
+
+        [Tooltip("스프린트 입력 키")]
+        public KeyCode sprintKey;
+
+        [Tooltip("지상에서만 스프린트 허용 여부")]
+        public bool sprintOnlyOnGround;
+
+        [Header("점프 및 중력")]
+        [Tooltip("점프 높이 (미터 단위)")]
+        public float jumpHeight;
+
+        [Tooltip("중력 가속도 (음수 권장)")]
+        public float gravity;
+
+        [Tooltip("경사면에서 지면에 붙게 하는 보정 값 (음수 권장)")]
+        public float groundedStick;
 
         [Header("점프 타이밍")]
-        [Tooltip("점프 쿨다운 (연속 점프 불가 시간, 초 단위)")] public float jumpCooldown;
-        [Tooltip("코요테 타임 (착지 후 잠깐 점프 허용 시간)")] public float coyoteTime;
-        [Tooltip("점프 버퍼 (입력 미리 받아주는 시간)")] public float jumpBufferTime;
+        [Tooltip("점프 후 다음 점프까지 최소 대기 시간")]
+        public float jumpCooldown;
 
-        [Header("스프린트 소진 정지")]
-        [Tooltip("효율 소진 시 즉시 멈출지 여부")] public bool stopOnSprintExhaust;
-        [Tooltip("소진 후 강제 정지 유지 시간(초)")] public float exhaustStopDuration;
+        [Tooltip("코요테 타임 (착지 직후 점프 허용 시간)")]
+        public float coyoteTime;
+
+        [Tooltip("점프 버퍼 시간 (입력을 저장하는 시간)")]
+        public float jumpBufferTime;
+
+        [Header("스프린트 소진 처리")]
+        [Tooltip("효율 소진 시 스프린트를 즉시 중단할지 여부")]
+        public bool stopOnSprintExhaust;
+
+        [Tooltip("효율 소진 후 강제 제약 지속 시간")]
+        public float exhaustStopDuration;
     }
 
+    // 효율 시스템 튜닝 구조체 (행동별 소모, 회복 규칙)
     [System.Serializable]
     public struct EfficiencyTuning
     {
-        [Header("Capacity")]
-        [Tooltip("효율(스태미너)의 최대치")] public float max;
+        [Header("최대 효율")]
+        [Tooltip("효율 최대 값")]
+        public float max;
 
-        [Header("Walk / Sprint / Jump Drain")]
-        [Tooltip("걷기 중 초당 효율 소모량 (0이면 소모 없음)")] public float walkDrainPerSecond;
-        [Tooltip("스프린트 중 초당 효율 소모량")] public float sprintDrainPerSecond;
-        [Tooltip("점프 1회당 소모 효율량")] public float jumpCost;
+        [Header("행동별 소모량")]
+        [Tooltip("걷기 중 초당 효율 소모량 (0이면 소모 없음)")]
+        public float walkDrainPerSecond;
 
-        [Header("Regen")]
-        [Tooltip("정지 시 초당 효율 회복량")] public float idleRegenPerSecond;
-        [Tooltip("이동 중 초당 효율 회복량")] public float moveRegenPerSecond;
-        [Tooltip("효율 소모 후 회복 시작까지 지연 시간(초)")] public float regenDelay;
+        [Tooltip("스프린트 중 초당 효율 소모량")]
+        public float sprintDrainPerSecond;
+
+        [Tooltip("점프 1회당 효율 소모량")]
+        public float jumpCost;
+
+        [Header("회복")]
+        [Tooltip("정지 상태에서 초당 효율 회복량")]
+        public float idleRegenPerSecond;
+
+        [Tooltip("이동 중 초당 효율 회복량")]
+        public float moveRegenPerSecond;
+
+        [Tooltip("소모 후 회복 시작까지의 대기 시간")]
+        public float regenDelay;
     }
 
+    // 애니메이션 반응 튜닝 구조체
     [System.Serializable]
     public struct AnimTuning
     {
-        [Header("애니메이션 전환 감속/가속")]
-        [Tooltip("속도 증가 시 반응 속도")] public float dampUp;
-        [Tooltip("속도 감소 시 반응 속도")] public float dampDown;
-        [Tooltip("거의 멈췄을 때 0으로 스냅되는 임계값")] public float stopSnapThreshold;
+        [Header("이동 애니메이션 반응")]
+        [Tooltip("속도 증가 시 애니메이터 반응 속도")]
+        public float dampUp;
+
+        [Tooltip("속도 감소 시 애니메이터 반응 속도")]
+        public float dampDown;
+
+        [Tooltip("이동 속도가 이 값 이하이면 정지로 처리")]
+        public float stopSnapThreshold;
     }
 
     [Header("Movement Settings")]
+    [Tooltip("플레이어 이동, 점프, 스프린트 설정 값")]
     public MovementTuning movementTuning = new MovementTuning
     {
         walkSpeed = 4f,
         sprintMultiplier = 1.7f,
         sprintKey = KeyCode.LeftShift,
         sprintOnlyOnGround = true,
-
         jumpHeight = 1.2f,
         gravity = -20f,
         groundedStick = -2f,
-
         jumpCooldown = 0.2f,
         coyoteTime = 0.1f,
         jumpBufferTime = 0.1f,
-
         stopOnSprintExhaust = true,
         exhaustStopDuration = 0.2f
     };
 
     [Header("Efficiency Settings")]
+    [Tooltip("효율(스태미너 대체) 설정 값")]
     public EfficiencyTuning efficiencyTuning = new EfficiencyTuning
     {
         max = 100f,
@@ -124,6 +179,7 @@ public class PlayerController : MonoBehaviour
     };
 
     [Header("Animation Settings")]
+    [Tooltip("애니메이션 보간 및 정지 처리 설정 값")]
     public AnimTuning animTuning = new AnimTuning
     {
         dampUp = 0.08f,
@@ -131,92 +187,92 @@ public class PlayerController : MonoBehaviour
         stopSnapThreshold = 0.08f
     };
 
-    // ===== 초기화 =====
-    void Awake()
+    private void Awake()
     {
-        _cc = GetComponent<CharacterController>();                                       // 캐릭터컨트롤러 캐시
+        // 필수 컴포넌트 캐싱
+        _cc = GetComponent<CharacterController>();
 
-        efficiency.Init();                                                              // 효율 모듈 초기화
-        movement.Initialize(_cc, transform, efficiency);                                // 이동 모듈 초기화
+        // 효율 시스템 초기화
+        efficiency.Init();
 
+        // 이동 모듈 초기화 (캐릭터컨트롤러, 트랜스폼, 효율 모듈 참조)
+        movement.Initialize(_cc, transform, efficiency);
+
+        // 애니메이터 자동 검색
         if (!animatorSource)
-            animatorSource = GetComponentInChildren<Animator>(true);                    // 애니메이터 자동 참조
-        animModule.Init(animatorSource);                                                // 애니메이션 모듈 초기화
+            animatorSource = GetComponentInChildren<Animator>(true);
+        animModule.Init(animatorSource);
 
-        if (inventory != null) inventory.Init();                                        // 인벤토리 초기화
-        if (inventoryPickup != null) inventoryPickup.Init(transform, inventory);        // 아이템 줍기 초기화
+        // 인벤토리 초기화
+        if (inventory != null)
+            inventory.Init();
+
+        // 아이템 픽업 모듈 초기화
+        if (inventoryPickup != null)
+            inventoryPickup.Init(transform, inventory);
+
+        // 시간 시스템 자동 참조
         if (timeSystem == null)
-            timeSystem = FindFirstObjectByType<TimeSystemController>();                 // 타임 시스템 자동 탐색
+            timeSystem = FindFirstObjectByType<TimeSystemController>();
 
+        // 카메라 리그 자동 참조
         if (cameraRig == null)
-            cameraRig = FindFirstObjectByType<CameraRigMouseLookTPS>();                 // 카메라 리그 자동 탐색 (없으면 null)
+            cameraRig = FindFirstObjectByType<CameraRigMouseLookTPS>();
 
-        if (inventoryUI != null) inventoryUI.SetActive(false);                          // 인벤토리 UI 비활성
-
-        Cursor.lockState = CursorLockMode.Locked;                                       // 마우스 잠금
-        Cursor.visible = false;                                                         // 커서 숨김
-        _inventoryOpen = false;                                                         // 인벤토리 닫힘
-
-        ApplySettings();                                                                // 인스펙터 값 1회 반영
-
-        // 시작 시점 모드 적용
-        if (cameraRig != null)
-        {
-            cameraRig.SetMode(defaultCameraMode);                                       // 기본 1인칭으로 시작(설정값 기준)
-        }
-
+        // 퀘스트 로그 자동 참조
         if (questLog == null)
-        {
             questLog = GetComponent<PlayerQuestLog>();
-            if (questLog == null)
-            {
-                // 혹시 실수로 안 붙였으면 자동으로 달아줌 (원하면 빼도 됨)
-                questLog = gameObject.AddComponent<PlayerQuestLog>();
-                Debug.LogWarning("[PlayerController] PlayerQuestLog가 없어 자동 추가했습니다.");
-            }
-        }
+
+        // 인벤토리 UI 기본 비활성화
+        if (inventoryUI != null)
+            inventoryUI.SetActive(false);
+
+        // 초기 마우스 잠금
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        _inventoryOpen = false;
+
+        // 인스펙터 튜닝값을 모듈에 적용
+        ApplySettings();
+
+        // 시작 시 카메라 모드 설정
+        if (cameraRig != null)
+            cameraRig.SetMode(defaultCameraMode);
     }
 
-    // ===== 프레임 루프 =====
-    void Update()
+    private void Update()
     {
-        // 인벤토리 토글
+        // 인벤토리 열기/닫기 입력 처리
         if (Input.GetKeyDown(inventoryKey))
             ToggleInventory();
 
-        // 인벤토리 열려 있으면 조작/시점 변경 막기
-        if (_inventoryOpen) return;
+        // 인벤토리 열린 상태에서는 움직임과 시점 입력을 막는다
+        if (_inventoryOpen)
+            return;
 
-        // 시점 토글 처리 (퀘스트/상태 조건 반영)
+        // 시점 전환 처리
         HandleViewToggle();
 
-        // 인스펙터 값 실시간 반영 (튜닝용)
+        // 인스펙터 값 변경 시 즉시 반영 (튜닝 편의용)
         ApplySettings();
 
-        // === 이동 처리 ===
+        // 이동 입력 및 점프 처리
         movement.Tick();
+
         bool moving = movement.HasMoveInput();
         bool sprintingPre = movement.IsSprinting();
         bool jumpTrig = movement.ConsumeJumpTriggered();
 
-        // === 효율 처리 ===
+        // 효율 소모 및 회복 처리
         efficiency.Tick(Time.deltaTime, moving, sprintingPre);
 
+        // 효율에 따른 시간 소모 배율 전달
         if (timeSystem != null)
-        {
             timeSystem.SetExternalCostMultiplier(efficiency.ComputeCostMultiplier());
-
-            if (debugEfficiency && Time.unscaledTime >= _dbgNextTime)
-            {
-                float eff01 = efficiency.Normalized();
-                Debug.Log($"[EFF] {eff01 * 100f:0}%   mul=x{timeSystem.externalCostMultiplier:0.00}   moving={moving}  sprint={sprintingPre}");
-                _dbgNextTime = Time.unscaledTime + 0.3f;
-            }
-        }
 
         bool sprinting = movement.IsSprinting();
 
-        // === 애니메이션 처리 ===
+        // 애니메이션 업데이트
         animModule.Tick(
             Time.deltaTime,
             movement.GetPlanarSpeed(),
@@ -226,80 +282,96 @@ public class PlayerController : MonoBehaviour
             sprinting
         );
 
-        // === 시간 경제(행동 비용) 처리 ===
+        // 시간 자원 소모 처리 (행동 기준)
         if (timeSystem != null)
         {
             if (moving)
             {
-                if (sprinting) timeSystem.SpendForSprintDelta(Time.deltaTime);
-                else timeSystem.SpendForWalkDelta(Time.deltaTime);
+                if (sprinting)
+                    timeSystem.SpendForSprintDelta(Time.deltaTime);
+                else
+                    timeSystem.SpendForWalkDelta(Time.deltaTime);
             }
 
             if (jumpTrig)
                 timeSystem.SpendForJumpEvent();
         }
 
-        // === 인터랙션 처리 ===
+        // 아이템 줍기 처리
         if (inventoryPickup != null)
             inventoryPickup.Tick();
     }
 
-    // ===== 시점 토글 처리 =====
+    // 시점 전환 처리 로직
     private void HandleViewToggle()
     {
-        if (cameraRig == null) return;                                                  // 카메라 리그 없으면 처리 안 함
-        if (!allowThirdPersonToggle) return;                                            // 전체적으로 비활성화 시 무시
+        if (cameraRig == null)
+            return;
 
-        // 퀘스트 진행 중 / 위험 상태면 3인칭 강제 금지
+        if (!allowThirdPersonToggle)
+            return;
+
+        // 제한 조건에서 강제 1인칭 유지
         if (restrictThirdPersonDuringQuest && !CanUseThirdPerson())
         {
             if (cameraRig.CurrentMode != CameraRigMouseLookTPS.CameraMode.FirstPerson)
-            {
-                cameraRig.SetMode(CameraRigMouseLookTPS.CameraMode.FirstPerson);        // 자동 1인칭 복귀
-            }
+                cameraRig.SetMode(CameraRigMouseLookTPS.CameraMode.FirstPerson);
+
             return;
         }
 
-        // 토글 입력 처리
+        // 토글 키 입력 시 1인칭/3인칭 전환
         if (Input.GetKeyDown(viewToggleKey))
         {
-            var next =
-                cameraRig.CurrentMode == CameraRigMouseLookTPS.CameraMode.FirstPerson
+            var next = cameraRig.CurrentMode == CameraRigMouseLookTPS.CameraMode.FirstPerson
                 ? CameraRigMouseLookTPS.CameraMode.ThirdPerson
                 : CameraRigMouseLookTPS.CameraMode.FirstPerson;
 
-            cameraRig.SetMode(next);                                                    // 모드 전환
+            cameraRig.SetMode(next);
         }
     }
 
-    // ===== 3인칭 사용 가능 조건 체크 =====
+    // 현재 상황에서 3인칭 사용 가능한지 확인
     private bool CanUseThirdPerson()
     {
-        if (!allowThirdPersonToggle) return false;
-        if (questLog == null) return true;
+        if (!allowThirdPersonToggle)
+            return true;
 
-        // 퀘스트 로그에서 카메라 락이 걸려 있으면 무조건 3인칭 금지
+        if (questLog == null)
+            return true;
+
+        // 퀘스트에서 카메라를 잠그는 경우
         if (questLog.IsCameraLocked())
             return false;
 
         if (restrictThirdPersonDuringQuest)
         {
-            if (questLog.HasActiveQuest()) return false;
-            if (questLog.IsInTimedOrDangerQuest()) return false;
+            if (questLog.HasActiveQuest())
+                return false;
+
+            if (questLog.IsInTimedOrDangerQuest())
+                return false;
         }
 
         return true;
     }
 
-    // ===== 인스펙터 값 → 모듈에 반영 =====
+    // 인스펙터 튜닝값을 각 모듈로 전달
     private void ApplySettings()
     {
         movement.SyncSettings(
-            movementTuning.jumpCooldown, movementTuning.coyoteTime, movementTuning.jumpBufferTime,
-            movementTuning.walkSpeed, movementTuning.sprintMultiplier,
-            movementTuning.sprintKey, movementTuning.sprintOnlyOnGround,
-            movementTuning.jumpHeight, movementTuning.gravity, movementTuning.groundedStick,
-            movementTuning.stopOnSprintExhaust, movementTuning.exhaustStopDuration
+            movementTuning.jumpCooldown,
+            movementTuning.coyoteTime,
+            movementTuning.jumpBufferTime,
+            movementTuning.walkSpeed,
+            movementTuning.sprintMultiplier,
+            movementTuning.sprintKey,
+            movementTuning.sprintOnlyOnGround,
+            movementTuning.jumpHeight,
+            movementTuning.gravity,
+            movementTuning.groundedStick,
+            movementTuning.stopOnSprintExhaust,
+            movementTuning.exhaustStopDuration
         );
 
         efficiency.SyncSettings(
@@ -313,9 +385,11 @@ public class PlayerController : MonoBehaviour
         );
     }
 
+    // 인벤토리 UI 열기/닫기와 마우스 상태 처리
     private void ToggleInventory()
     {
-        if (inventoryUI == null) return;
+        if (inventoryUI == null)
+            return;
 
         _inventoryOpen = !_inventoryOpen;
         inventoryUI.SetActive(_inventoryOpen);
@@ -323,7 +397,8 @@ public class PlayerController : MonoBehaviour
         if (_inventoryOpen)
         {
             var invUI = inventoryUI.GetComponent<InventoryUI>();
-            if (invUI != null) invUI.ForceRefresh();
+            if (invUI != null)
+                invUI.ForceRefresh();
 
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -335,7 +410,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // === 데미지 → 생존 시간 차감 ===
+    // 외부에서 호출하는 피해 처리: 피해량만큼 시간 시스템에 전달하고 히트 이펙트 표시
     public void ApplyDamage(float amount)
     {
         if (timeSystem != null)
