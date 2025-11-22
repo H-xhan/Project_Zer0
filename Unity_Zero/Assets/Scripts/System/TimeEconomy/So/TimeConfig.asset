@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04179c4c568f25a498b47f70444f5e10, type: 3}
+  m_Name: TimeConfig
+  m_EditorClassIdentifier: Assembly-CSharp::TimeConfigSO
+  initialSeconds: 900
+  baseDrainPerSecond: 0
+  startRunning: 1
+  walkCostPerSecond: 1
+  sprintCostPerSecond: 2
+  jumpCostOnce: 3
+  damageToSecondsScale: 1
+  damageIFrameSeconds: 0.2
+  externalCostMultiplier: 1
+  externalCostMin: 1
+  externalCostMax: 3
+  walkEffFactor: 1
+  sprintEffFactor: 1
+  jumpEffFactor: 1

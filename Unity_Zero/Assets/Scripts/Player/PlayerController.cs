@@ -148,44 +148,16 @@ public class PlayerController : MonoBehaviour
     }
 
     [Header("Movement Settings")]
-    [Tooltip("플레이어 이동, 점프, 스프린트 설정 값")]
-    public MovementTuning movementTuning = new MovementTuning
-    {
-        walkSpeed = 4f,
-        sprintMultiplier = 1.7f,
-        sprintKey = KeyCode.LeftShift,
-        sprintOnlyOnGround = true,
-        jumpHeight = 1.2f,
-        gravity = -20f,
-        groundedStick = -2f,
-        jumpCooldown = 0.2f,
-        coyoteTime = 0.1f,
-        jumpBufferTime = 0.1f,
-        stopOnSprintExhaust = true,
-        exhaustStopDuration = 0.2f
-    };
+    [Tooltip("플레이어 이동, 점프, 스프린트 설정 값 (데이터에서 주입)")]
+    [HideInInspector] public MovementTuning movementTuning;
 
     [Header("Efficiency Settings")]
-    [Tooltip("효율(스태미너 대체) 설정 값")]
-    public EfficiencyTuning efficiencyTuning = new EfficiencyTuning
-    {
-        max = 100f,
-        walkDrainPerSecond = 0f,
-        sprintDrainPerSecond = 20f,
-        jumpCost = 15f,
-        idleRegenPerSecond = 15f,
-        moveRegenPerSecond = 5f,
-        regenDelay = 0.6f
-    };
+    [Tooltip("플레이어 효율(스태미너 유사) 관련 설정 값 (데이터에서 주입)")]
+    [HideInInspector] public EfficiencyTuning efficiencyTuning;
 
     [Header("Animation Settings")]
-    [Tooltip("애니메이션 보간 및 정지 처리 설정 값")]
-    public AnimTuning animTuning = new AnimTuning
-    {
-        dampUp = 0.08f,
-        dampDown = 0.04f,
-        stopSnapThreshold = 0.08f
-    };
+    [Tooltip("애니메이션 보간 및 정지 처리 설정 값 (데이터에서 주입)")]
+    [HideInInspector] public AnimTuning animTuning;
 
     private void Awake()
     {
@@ -232,12 +204,16 @@ public class PlayerController : MonoBehaviour
         Cursor.visible = false;
         _inventoryOpen = false;
 
+        //데이터 테이블에서 튜닝 값 주입
+        ApplyConfigFromDataController();
+
         // 인스펙터 튜닝값을 모듈에 적용
         ApplySettings();
 
         // 시작 시 카메라 모드 설정
         if (cameraRig != null)
             cameraRig.SetMode(defaultCameraMode);
+
     }
 
     private void Update()
@@ -252,9 +228,6 @@ public class PlayerController : MonoBehaviour
 
         // 시점 전환 처리
         HandleViewToggle();
-
-        // 인스펙터 값 변경 시 즉시 반영 (튜닝 편의용)
-        ApplySettings();
 
         // 이동 입력 및 점프 처리
         movement.Tick();
@@ -391,6 +364,56 @@ public class PlayerController : MonoBehaviour
             efficiencyTuning.jumpCost,
             efficiencyTuning.max
         );
+    }
+
+    private void ApplyConfigFromDataController()
+    {
+        var data = DataController.Instance;
+        if (data == null)
+            return;
+
+        // Movement
+        var moveCfg = data.MovementConfig;
+        if (moveCfg != null)
+        {
+            movementTuning.walkSpeed = moveCfg.walkSpeed;
+            movementTuning.sprintMultiplier = moveCfg.sprintMultiplier;
+            movementTuning.sprintKey = moveCfg.sprintKey;
+            movementTuning.sprintOnlyOnGround = moveCfg.sprintOnlyOnGround;
+
+            movementTuning.jumpHeight = moveCfg.jumpHeight;
+            movementTuning.jumpCooldown = moveCfg.jumpCooldown;
+            movementTuning.coyoteTime = moveCfg.coyoteTime;
+            movementTuning.jumpBufferTime = moveCfg.jumpBufferTime;
+
+            movementTuning.gravity = moveCfg.gravity;
+            movementTuning.groundedStick = moveCfg.groundedStick;
+
+            movementTuning.stopOnSprintExhaust = moveCfg.stopOnSprintExhaust;
+            movementTuning.exhaustStopDuration = moveCfg.exhaustStopDuration;
+        }
+
+        // Efficiency
+        var effCfg = data.EfficiencyConfig;
+        if (effCfg != null)
+        {
+            efficiencyTuning.max = effCfg.max;
+            efficiencyTuning.walkDrainPerSecond = effCfg.walkDrainPerSecond;
+            efficiencyTuning.sprintDrainPerSecond = effCfg.sprintDrainPerSecond;
+            efficiencyTuning.jumpCost = effCfg.jumpCost;
+            efficiencyTuning.idleRegenPerSecond = effCfg.idleRegenPerSecond;
+            efficiencyTuning.moveRegenPerSecond = effCfg.moveRegenPerSecond;
+            efficiencyTuning.regenDelay = effCfg.regenDelay;
+        }
+
+        // Anim
+        var animCfg = data.AnimConfig;
+        if (animCfg != null)
+        {
+            animTuning.dampUp = animCfg.dampUp;
+            animTuning.dampDown = animCfg.dampDown;
+            animTuning.stopSnapThreshold = animCfg.stopSnapThreshold;
+        }
     }
 
     // 인벤토리 UI 열기/닫기와 마우스 상태 처리

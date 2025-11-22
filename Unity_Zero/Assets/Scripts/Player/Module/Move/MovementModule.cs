@@ -199,7 +199,10 @@ public class MovementModule
     void TryJump()
     {
         if (_efficiency != null)
+        {
+            // 효율이 남아 있다면 그만큼만 소모 (부족해도 행동은 허용)
             _efficiency.TrySpend(_efficiency.jumpCost);
+        }
 
         DoJump();
     }

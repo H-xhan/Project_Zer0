@@ -256,6 +256,54 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1081740039}
   m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+--- !u!1 &68577266
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 68577267}
+  - component: {fileID: 68577268}
+  m_Layer: 0
+  m_Name: DataController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &68577267
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 68577266}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &68577268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 68577266}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d13e251b63e513d4b85e4fb7bd7fc665, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DataController
+  timeConfig: {fileID: 11400000, guid: 53c3edf38fc9d3d419a4f067b77acb46, type: 2}
+  movementConfig: {fileID: 0}
+  efficiencyConfig: {fileID: 0}
+  animConfig: {fileID: 0}
 --- !u!1 &155161531
 GameObject:
   m_ObjectHideFlags: 0
@@ -566,13 +614,15 @@ MonoBehaviour:
     paramIsFalling: IsFalling
     paramLand: Land
     paramIsSprinting: IsSprinting
+    paramTurn: Turn
+    paramIsTurning: IsTurning
+    turnThreshold: 0.25
     speedToParam: 0.25
     stopSnapThreshold: 0.05
     snapOnlyWhenGrounded: 1
     dampUp: 0.08
     dampDown: 0.04
     fallingThreshold: -0.1
-    logOnceIfAnimatorNull: 1
   efficiency:
     max: 100
     current: 100
@@ -582,7 +632,6 @@ MonoBehaviour:
     idleRegenPerSecond: 15
     moveRegenPerSecond: 5
     regenDelay: 0.6
-    minToSprint: 5
     clampOnInit: 1
     maxPenaltyMultiplier: 1.5
     bestMultiplier: 1
@@ -607,7 +656,6 @@ MonoBehaviour:
   inventoryUI: {fileID: 1593858430}
   inventoryKey: 9
   animatorSource: {fileID: 385897376}
-  debugEfficiency: 0
   movementTuning:
     walkSpeed: 4
     sprintMultiplier: 1.7
@@ -1132,8 +1180,6 @@ MonoBehaviour:
   walkEffFactor: 1
   sprintEffFactor: 1
   jumpEffFactor: 1
-  debugLog: 0
-  actionModule: {fileID: 0}
 --- !u!1 &705478681
 GameObject:
   m_ObjectHideFlags: 0
@@ -2095,7 +2141,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: 10}
+  m_AnchoredPosition: {x: 0, y: 43.2}
   m_SizeDelta: {x: 160, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1548482541
@@ -2935,3 +2981,4 @@ SceneRoots:
   - {fileID: 1291977385}
   - {fileID: 1808891172}
   - {fileID: 1825972696}
+  - {fileID: 68577267}

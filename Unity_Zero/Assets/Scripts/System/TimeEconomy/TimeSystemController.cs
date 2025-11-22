@@ -75,8 +75,44 @@ public class TimeSystemController : MonoBehaviour
     public float MaxSeconds => initialSeconds;
     public bool IsRunning => _running;
 
+    private void ApplyConfigFromDataController()
+    {
+        var data = DataController.Instance;
+        if (data == null)
+            return;
+
+        var cfg = data.TimeConfig;
+        if (cfg == null)
+            return;
+
+        // Core
+        initialSeconds = cfg.initialSeconds;
+        baseDrainPerSecond = cfg.baseDrainPerSecond;
+        startRunning = cfg.startRunning;
+
+        // Action Costs
+        walkCostPerSecond = cfg.walkCostPerSecond;
+        sprintCostPerSecond = cfg.sprintCostPerSecond;
+        jumpCostOnce = cfg.jumpCostOnce;
+
+        // Damage Costs
+        damageToSecondsScale = cfg.damageToSecondsScale;
+        damageIFrameSeconds = cfg.damageIFrameSeconds;
+
+        // Dynamic Multiplier
+        externalCostMin = cfg.externalCostMin;
+        externalCostMax = cfg.externalCostMax;
+        externalCostMultiplier = Mathf.Clamp(cfg.externalCostMultiplier, externalCostMin, externalCostMax);
+
+        // Efficiency Influence
+        walkEffFactor = cfg.walkEffFactor;
+        sprintEffFactor = cfg.sprintEffFactor;
+        jumpEffFactor = cfg.jumpEffFactor;
+    }
+
     private void Awake()
     {
+        ApplyConfigFromDataController();
         Initialize();
 
         // 행동 비용 모듈 확보 및 초기화
@@ -219,4 +255,6 @@ public class TimeSystemController : MonoBehaviour
     {
         return Mathf.Lerp(1f, externalCostMultiplier, jumpEffFactor);
     }
+
+   
 }

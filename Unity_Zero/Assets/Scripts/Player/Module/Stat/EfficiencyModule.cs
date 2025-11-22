@@ -109,9 +109,10 @@ public class EfficiencyModule
         if (amount <= 0f)
             return true;
 
+        // 남은 값에서 amount만큼 깎되, 최소 0까지만
         current = Mathf.Max(0f, current - amount);
         _regenTimer = regenDelay;
-        return true;
+        return true; // 항상 true 반환 → 행동 차단 없음
     }
 
     // 외부에서 효율 회복 시 호출

@@ -6,12 +6,12 @@ public class GameManager : MonoBehaviour
     // 전역 접근용 싱글톤 인스턴스
     public static GameManager Instance { get; private set; }
 
-    [Header("Stage Time Limit")]
-    [Tooltip("스테이지 제한 시간(초)")]
-    [SerializeField] private float stageTimeLimit = 300f;
+    [Header("Time System")]
+    [Tooltip("씬에 존재하는 시간 시스템")]
+    [SerializeField] private TimeSystemController timeSystem;
 
-    [Tooltip("현재 남은 시간(읽기 전용)")]
-    public float RemainingTime { get; private set; }
+    [Tooltip("현재 남은 시간(초) - TimeSystemController에서 조회")]
+    public float RemainingTime => timeSystem != null ? timeSystem.CurrentSeconds : 0f;
 
     [Header("Puzzle State")]
     [Tooltip("모든 필수 퍼즐이 클리어되었는지 여부")]
@@ -29,31 +29,32 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        RemainingTime = stageTimeLimit;
+        if (timeSystem == null)
+            timeSystem = Object.FindFirstObjectByType<TimeSystemController>();
     }
 
     private void OnEnable()
     {
         EventBus.OnPuzzleCleared += HandlePuzzleCleared;
+
+        if (timeSystem == null)
+            timeSystem = Object.FindFirstObjectByType<TimeSystemController>();
+
+        if (timeSystem != null)
+            timeSystem.OnTimeDepleted += HandleTimeUp;
     }
 
     private void OnDisable()
     {
         EventBus.OnPuzzleCleared -= HandlePuzzleCleared;
+
+        if (timeSystem != null)
+            timeSystem.OnTimeDepleted -= HandleTimeUp;
     }
 
     private void Update()
     {
-        // 제한 시간 감소
-        if (RemainingTime > 0f)
-        {
-            RemainingTime -= Time.deltaTime;
-            if (RemainingTime <= 0f)
-            {
-                RemainingTime = 0f;
-                HandleTimeUp();
-            }
-        }
+
     }
 
     // 퍼즐 클리어 알림 처리
