@@ -18,6 +18,9 @@ public class PlayerController : MonoBehaviour
     [Tooltip("시간 자원을 관리하는 핵심 시스템")]
     public TimeSystemController timeSystem;
 
+    [Tooltip("플레이어 스탯 관리자")]
+    public PlayerStats playerStats;
+
     [Header("Quest (Optional)")]
     [Tooltip("카메라 잠금, 진행 상태 등을 확인하는 퀘스트 로그")]
     public PlayerQuestLog questLog;
@@ -51,6 +54,8 @@ public class PlayerController : MonoBehaviour
 
     [Tooltip("플레이어 애니메이터 (비워두면 자식에서 검색)")]
     public Animator animatorSource;
+
+
 
     // 이동과 관련된 실제 물리 이동을 처리하는 컴포넌트
     private CharacterController _cc;
@@ -218,6 +223,12 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+
+        if (movement != null && playerStats != null)
+        {
+            // 스탯 값을 가져와서 이동 모듈에 주입
+            movement.SetWalkSpeed(playerStats.WalkSpeed.Value);
+        }
         // 인벤토리 열기/닫기 입력 처리
         if (Input.GetKeyDown(inventoryKey))
             ToggleInventory();

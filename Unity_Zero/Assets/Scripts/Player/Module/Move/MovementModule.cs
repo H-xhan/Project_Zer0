@@ -256,4 +256,10 @@ public class MovementModule
 
         _moveInput = Vector2.zero;
     }
+
+    public void SetWalkSpeed(float speed)
+    {
+        _walkSpeed = speed;
+    }
+
 }
