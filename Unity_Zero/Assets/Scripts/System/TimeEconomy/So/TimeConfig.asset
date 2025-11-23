@@ -13,16 +13,23 @@ MonoBehaviour:
   m_Name: TimeConfig
   m_EditorClassIdentifier: Assembly-CSharp::TimeConfigSO
   initialSeconds: 900
-  baseDrainPerSecond: 0
+  baseDrainPerSecond: 1
   startRunning: 1
   walkCostPerSecond: 1
   sprintCostPerSecond: 2
-  jumpCostOnce: 3
+  jumpCostOnce: 5
   damageToSecondsScale: 1
   damageIFrameSeconds: 0.2
   externalCostMultiplier: 1
   externalCostMin: 1
   externalCostMax: 3
-  walkEffFactor: 1
+  walkEffFactor: 0
   sprintEffFactor: 1
   jumpEffFactor: 1
+  effStep1LossPercent: 20
+  effStep2LossPercent: 40
+  effStep3LossPercent: 60
+  effMultiplierStage0: 1
+  effMultiplierStage1: 1.5
+  effMultiplierStage2: 2.5
+  effMultiplierStage3: 3.5

@@ -35,13 +35,6 @@ public class EfficiencyModule
     [Tooltip("Init 시 현재 값을 0~max 범위로 보정할지 여부")]
     public bool clampOnInit = true;
 
-    [Header("Efficiency → Cost Multiplier")]
-    [Tooltip("효율이 가장 낮을 때의 비용 배율")]
-    public float maxPenaltyMultiplier = 2.0f;
-
-    [Tooltip("효율이 최대일 때의 비용 배율")]
-    public float bestMultiplier = 1.0f;
-
     // 회복 대기 타이머
     float _regenTimer;
 
@@ -133,14 +126,53 @@ public class EfficiencyModule
         return current / max;
     }
 
-    // 효율에 따라 시간 소비 배율 계산
+    // 효율에 따라 시간 소비 배율 계산 (계단식 패널티)
+    // 효율에 따라 시간 소비 배율 계산 (TimeConfig 기반 계단식 패널티)
     public float ComputeCostMultiplier()
     {
-        float t = Normalized();          // 0~1, 높을수록 효율 좋음
-        float s = 1f - t;                // 효율이 낮을수록 s 증가
-        float curve = s * s;             // 낮은 구간에서 더 급격히 증가
+        if (max <= 0f)
+            return 1f;
 
-        return Mathf.Lerp(bestMultiplier, maxPenaltyMultiplier, curve);
+        // 0~1 정규화된 효율 (1 = 100%)
+        float efficiency01 = Mathf.Clamp01(current / max);
+
+        // 잃어버린 효율량을 %로 환산 (0~100)
+        float lostPercent = (1f - efficiency01) * 100f;
+
+        // 기본값(fallback) – TimeConfigSO가 없을 때 사용
+        float step1 = 20f;
+        float step2 = 40f;
+        float step3 = 60f;
+
+        float mul0 = 1.0f;
+        float mul1 = 1.5f;
+        float mul2 = 2.5f;
+        float mul3 = 3.5f;
+
+        // TimeConfigSO에서 값 가져오기
+        var data = DataController.Instance;
+        var cfg = data != null ? data.TimeConfig : null;
+
+        if (cfg != null)
+        {
+            step1 = Mathf.Clamp(cfg.effStep1LossPercent, 0f, 100f);
+            step2 = Mathf.Clamp(cfg.effStep2LossPercent, 0f, 100f);
+            step3 = Mathf.Clamp(cfg.effStep3LossPercent, 0f, 100f);
+
+            mul0 = cfg.effMultiplierStage0;
+            mul1 = cfg.effMultiplierStage1;
+            mul2 = cfg.effMultiplierStage2;
+            mul3 = cfg.effMultiplierStage3;
+        }
+
+        // 계단식 배율 적용
+        if (lostPercent < step1)
+            return mul0;
+        if (lostPercent < step2)
+            return mul1;
+        if (lostPercent < step3)
+            return mul2;
+        return mul3;
     }
 
     // 내부 소모 처리

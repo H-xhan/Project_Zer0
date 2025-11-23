@@ -236,12 +236,16 @@ public class PlayerController : MonoBehaviour
         bool sprintingPre = movement.IsSprinting();
         bool jumpTrig = movement.ConsumeJumpTriggered();
 
-        // 효율 소모 및 회복 처리
+        // 1. 효율 모듈 갱신 
         efficiency.Tick(Time.deltaTime, moving, sprintingPre);
 
-        // 효율에 따른 시간 소모 배율 전달
+        // 2. 갱신된 효율에 따른 패널티 계산 -> 시간 시스템에 적용
         if (timeSystem != null)
-            timeSystem.SetExternalCostMultiplier(efficiency.ComputeCostMultiplier());
+        {
+            // 효율 모듈에서 계산한 계단식 배율(1.0, 1.5, 2.5, 3.5)을 가져와서 세팅
+            float currentPenalty = efficiency.ComputeCostMultiplier();
+            timeSystem.SetExternalCostMultiplier(currentPenalty);
+        }
 
         bool sprinting = movement.IsSprinting();
 
@@ -263,7 +267,7 @@ public class PlayerController : MonoBehaviour
             movement.IsGrounded()
             );
 
-        // 시간 자원 소모 처리 (행동 기준)
+        // 3. 시간 자원 소모 처리 (행동 기준 + 효율 페널티는 내부에서 적용됨)
         if (timeSystem != null)
         {
             if (moving)
@@ -362,7 +366,7 @@ public class PlayerController : MonoBehaviour
             efficiencyTuning.moveRegenPerSecond,
             efficiencyTuning.regenDelay,
             efficiencyTuning.jumpCost,
-            efficiencyTuning.max
+            efficiencyTuning.max // [수정] maxCapacity 전달 추가
         );
     }
 
