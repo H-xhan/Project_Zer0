@@ -174,7 +174,7 @@ public class PlayerController : MonoBehaviour
         efficiency.Init();
 
         // 이동 모듈 초기화 (캐릭터컨트롤러, 트랜스폼, 효율 모듈 참조)
-        movement.Initialize(_cc, transform, efficiency);
+        movement.Initialize(this, _cc, transform, efficiency);
 
         // 애니메이터 자동 검색
         if (!animatorSource)
@@ -484,5 +484,12 @@ public class PlayerController : MonoBehaviour
 
         if (hitOverlay != null)
             hitOverlay.Flash(amount);
+    }
+
+    public bool IsRewinding { get; private set; }
+
+    public void SetRewindState(bool state)
+    {
+        IsRewinding = state;
     }
 }

@@ -1,25 +1,27 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 public class Skill_Rewind : TBSSkill
 {
-    private struct RewindFrame
-    {
-        public Vector3 position;
-        public float time;
+    private readonly List<Vector3> _positionHistory = new List<Vector3>();
 
-        public RewindFrame(Vector3 pos, float t)
-        {
-            position = pos;
-            time = t;
-        }
-    }
-
-    private readonly Queue<RewindFrame> _history = new Queue<RewindFrame>();
-
-    private float _recordInterval = 0.1f;   // 기록 간격
+    private float _recordInterval = 0.05f;
     private float _recordTimer = 0f;
-    private float _rewindSeconds = 3f;      // 몇 초 전까지 되돌릴지
+    private float _rewindSeconds = 3f;
+
+    private bool _isRewinding = false;
+
+    private int _currentIndex = -1;
+
+    private CharacterController _controller;
+
+    // --------------------------
+    //     튜닝 가능한 값들
+    // --------------------------
+
+    private float _baseRewindSpeed = 12f;   // 기본 되감기 속도
+    private float _easingStrength = 0.4f;   // 감속 비율 (0.1 ~ 0.7 추천)
+                                            // 값이 클수록 끝부분에서 감속이 강해짐
 
     public Skill_Rewind(PlayerController player,
                         TimeSystemController timeSystem,
@@ -27,76 +29,101 @@ public class Skill_Rewind : TBSSkill
                         float timeCost)
         : base(player, timeSystem, cooldown, timeCost)
     {
+        if (player != null)
+            _controller = player.GetComponent<CharacterController>();
     }
 
-    // ActiveSkillModule.Tick()에서 매 프레임 호출됨
     public void Tick()
     {
-        if (_player == null)
-            return;
+        if (_player == null) return;
 
+        if (_isRewinding)
+        {
+            UpdateRewind();
+            return;
+        }
+
+        // -------------------------
+        //      평상시 위치 기록
+        // -------------------------
         _recordTimer += Time.deltaTime;
         if (_recordTimer >= _recordInterval)
         {
             _recordTimer = 0f;
+            RecordPosition();
+        }
+    }
 
-            _history.Enqueue(new RewindFrame(_player.transform.position, Time.time));
+    private void RecordPosition()
+    {
+        _positionHistory.Add(_player.transform.position);
 
-            // 너무 오래된 데이터는 제거
-            float cutoff = Time.time - (_rewindSeconds + 1f);
-            while (_history.Count > 0 && _history.Peek().time < cutoff)
-                _history.Dequeue();
+        int maxCount = Mathf.CeilToInt(_rewindSeconds / _recordInterval) + 5;
+
+        if (_positionHistory.Count > maxCount)
+        {
+            _positionHistory.RemoveAt(0);
         }
     }
 
     protected override void OnUse()
     {
-        if (_player == null)
+        if (_isRewinding || _positionHistory.Count == 0)
             return;
 
-        if (_history.Count == 0)
+        _isRewinding = true;
+        _player.SetRewindState(true);
+        _currentIndex = _positionHistory.Count - 1;
+
+        if (_controller != null)
+            _controller.enabled = false;
+
+        Debug.Log("[Skill_Rewind] 시간 역행 시작!");
+    }
+
+    private void UpdateRewind()
+    {
+        if (_currentIndex < 0)
         {
-            Debug.Log("[Skill_Rewind] 되돌릴 기록이 없습니다.");
+            FinishRewind();
             return;
         }
 
-        float targetTime = Time.time - _rewindSeconds;
-        Vector3 targetPos = _player.transform.position;
-        bool found = false;
+        Vector3 target = _positionHistory[_currentIndex];
+        Vector3 current = _player.transform.position;
 
-        // 큐에서 타임라인에 가장 가까운 위치 찾기
-        foreach (var frame in _history)
+        float distance = Vector3.Distance(current, target);
+
+        // -------------------------
+        //     Easing 기반 감속
+        // -------------------------
+        float normalizedIndex = 1f - ((float)_currentIndex / (_positionHistory.Count - 1));
+        float easeFactor = Mathf.Lerp(1f, _easingStrength, normalizedIndex);
+
+        float speed = _baseRewindSpeed * easeFactor;
+        float step = speed * Time.deltaTime;
+
+        if (distance < 0.05f)
         {
-            if (frame.time <= targetTime)
-            {
-                targetPos = frame.position;
-                found = true;
-            }
-            else
-            {
-                break;
-            }
+            _currentIndex--;
+            return;
         }
 
-        if (!found)
-        {
-            // 3초 전이 없으면 가장 오래된 기록으로 이동
-            targetPos = _history.Peek().position;
-        }
+        _player.transform.position = Vector3.MoveTowards(current, target, step);
+    }
 
-        var cc = _player.GetComponent<CharacterController>();
-        if (cc != null)
+    private void FinishRewind()
+    {
+        _isRewinding = false;
+        _player.SetRewindState(false);
+        _positionHistory.Clear();
+
+        if (_controller != null)
         {
-            cc.enabled = false;
-            _player.transform.position = targetPos;
             Physics.SyncTransforms();
-            cc.enabled = true;
-        }
-        else
-        {
-            _player.transform.position = targetPos;
+            _controller.enabled = true;
         }
 
-        Debug.Log("[Skill_Rewind] 시간 역행 완료");
+        Debug.Log("[Skill_Rewind] 시간 역행 완료!");
     }
 }

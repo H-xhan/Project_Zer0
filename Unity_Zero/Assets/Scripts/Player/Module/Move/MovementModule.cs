@@ -5,6 +5,7 @@ using UnityEngine;
 public class MovementModule
 {
     // 런타임 참조
+    PlayerController _playerController;
     CharacterController _cc;
     Transform _tf;
     EfficiencyModule _efficiency;
@@ -45,8 +46,9 @@ public class MovementModule
     bool _pendingGroundStop;
 
     // 초기화: 필수 참조 연결
-    public void Initialize(CharacterController controller, Transform root, EfficiencyModule efficiencyModule)
+    public void Initialize(PlayerController player, CharacterController controller, Transform root, EfficiencyModule efficiencyModule)
     {
+        _playerController = player;
         _cc = controller;
         _tf = root;
         _efficiency = efficiencyModule;
@@ -90,6 +92,9 @@ public class MovementModule
     // 매 프레임 이동 처리
     public void Tick()
     {
+        if (_playerController != null && _playerController.IsRewinding)
+            return;
+
         if (_cc == null || _tf == null)
             return;
 
@@ -222,6 +227,9 @@ public class MovementModule
     // CharacterController에 최종 이동 적용
     void ApplyMovement()
     {
+        if (_cc == null || !_cc.enabled)
+            return;                      // 컨트롤러 꺼져 있으면 Move 안 함
+
         Vector3 vel = new Vector3(_planarVel.x, _verticalVel, _planarVel.z);
         _cc.Move(vel * Time.deltaTime);
     }
