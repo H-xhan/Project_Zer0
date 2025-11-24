@@ -700,7 +700,7 @@ MonoBehaviour:
     heatsinkLevel: 0
   _maxRam: 100
   _equippedApps:
-  - {fileID: 11400000, guid: c64f58404ab6cd142bdc53f313e90541, type: 2}
+  - {fileID: 11400000, guid: 729b4ec667457c1458e1097cb9e08e05, type: 2}
 --- !u!114 &385897379
 MonoBehaviour:
   m_ObjectHideFlags: 0

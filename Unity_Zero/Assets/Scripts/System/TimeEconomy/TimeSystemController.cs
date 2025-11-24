@@ -203,4 +203,27 @@ public class TimeSystemController : MonoBehaviour
     {
         OnTimeDepleted?.Invoke();
     }
+
+    // 스킬/외부 시스템용 래퍼 ================================
+    public bool HasEnoughTime(float seconds)
+    {
+        if (_wallet == null || seconds <= 0f)
+            return false;
+
+        return _wallet.CurrentSeconds >= seconds;
+    }
+
+    public bool SpendTime(float seconds, string reason = "Skill")
+    {
+        if (!_running || _wallet == null || seconds <= 0f)
+            return false;
+
+        if (!HasEnoughTime(seconds))
+            return false;
+
+        // 내부 통일을 위해 기존 SpendSeconds 재사용
+        SpendSeconds(seconds, reason);
+        return true;
+    }
+
 }

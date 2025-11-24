@@ -25,7 +25,6 @@ public class PlayerStats : MonoBehaviour
         SprintCost = new Stat(0f);
         TimeDrainRate = new Stat(1f);
     }
-
     private void Start()
     {
         InitializeBaseStats();

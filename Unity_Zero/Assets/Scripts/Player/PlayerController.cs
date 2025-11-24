@@ -18,8 +18,11 @@ public class PlayerController : MonoBehaviour
     [Tooltip("시간 자원을 관리하는 핵심 시스템")]
     public TimeSystemController timeSystem;
 
-    [Tooltip("플레이어 스탯 관리자")]
+    [Tooltip("플레이어 스탯 관리자 (연결 필수)")]
     public PlayerStats playerStats;
+
+    // [추가] 디바이스 컨트롤러 참조
+    private TBSDeviceController _deviceController;
 
     [Header("Quest (Optional)")]
     [Tooltip("카메라 잠금, 진행 상태 등을 확인하는 퀘스트 로그")]
@@ -54,8 +57,6 @@ public class PlayerController : MonoBehaviour
 
     [Tooltip("플레이어 애니메이터 (비워두면 자식에서 검색)")]
     public Animator animatorSource;
-
-
 
     // 이동과 관련된 실제 물리 이동을 처리하는 컴포넌트
     private CharacterController _cc;
@@ -180,6 +181,9 @@ public class PlayerController : MonoBehaviour
             animatorSource = GetComponentInChildren<Animator>(true);
         animModule.Init(animatorSource);
 
+        // 디바이스 컨트롤러 찾기
+        _deviceController = GetComponent<TBSDeviceController>();
+
         // 인벤토리 초기화
         if (inventory != null)
             inventory.Init();
@@ -209,7 +213,7 @@ public class PlayerController : MonoBehaviour
         Cursor.visible = false;
         _inventoryOpen = false;
 
-        //데이터 테이블에서 튜닝 값 주입
+        // 데이터 테이블에서 튜닝 값 주입
         ApplyConfigFromDataController();
 
         // 인스펙터 튜닝값을 모듈에 적용
@@ -218,17 +222,33 @@ public class PlayerController : MonoBehaviour
         // 시작 시 카메라 모드 설정
         if (cameraRig != null)
             cameraRig.SetMode(defaultCameraMode);
-
     }
 
     private void Update()
     {
-
+        // [중요] 매 프레임 스탯 동기화 (Stat -> Module)
         if (movement != null && playerStats != null)
         {
             // 스탯 값을 가져와서 이동 모듈에 주입
             movement.SetWalkSpeed(playerStats.WalkSpeed.Value);
         }
+
+        // [추가] Q, E 키 입력 시 디바이스에게 "스킬 써!" 명령
+        if (_deviceController != null)
+        {
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                Debug.Log("Q 키 입력 감지됨! (0번 슬롯 실행 요청)");
+                _deviceController.UseQuickSlot(0); // 0번 슬롯 실행
+            }
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                Debug.Log("E 키 입력 감지됨! (1번 슬롯 실행 요청)");
+                _deviceController.UseQuickSlot(1); // 1번 슬롯 실행
+            }
+        }
+
         // 인벤토리 열기/닫기 입력 처리
         if (Input.GetKeyDown(inventoryKey))
             ToggleInventory();
@@ -377,7 +397,7 @@ public class PlayerController : MonoBehaviour
             efficiencyTuning.moveRegenPerSecond,
             efficiencyTuning.regenDelay,
             efficiencyTuning.jumpCost,
-            efficiencyTuning.max // [수정] maxCapacity 전달 추가
+            efficiencyTuning.max
         );
     }
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DefaultExecutionOrder(-500)]
 [DisallowMultipleComponent]
 public class DataController : MonoBehaviour
 {
@@ -33,5 +34,7 @@ public class DataController : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        Debug.Log("[DataController] 초기화 완료 (Priority -500)");
     }
 }
