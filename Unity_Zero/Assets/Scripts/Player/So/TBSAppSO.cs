@@ -46,7 +46,33 @@ public class TBSAppSO : ScriptableObject
     public float baseCooldown;
     public float baseTimeCost;
 
+    [Header("Smart Aim Settings (Only for Smart_Aim)")]
+    [Tooltip("Smart_Aim 지속 시간(초)")]
+    public float smartAimDuration = 5f;
+
+    [Tooltip("조준 기준 방향과 타겟 사이 최대 허용 각도")]
+    public float smartAimMaxLockAngle = 20f;
+
+    [Tooltip("유도 강도 (0~1, 1에 가까울수록 타겟 쪽으로 더 강하게 꺾임)")]
+    public float smartAimHomingStrength = 0.7f;
+
+    [Header("Ghost Protocol Settings (Only for Ghost_Protocol)")]
+    [Tooltip("투명화 시작 시 초당 시간 소모량")]
+    public float ghostBaseCostPerSec = 1f;
+
+    [Tooltip("최대 초당 시간 소모량")]
+    public float ghostMaxCostPerSec = 5f;
+
+    [Tooltip("사용 시간이 늘어날 때 초당 시간 소모 증가량")]
+    public float ghostGrowthPerSec = 0.3f;
+
+    [Tooltip("이 값 아래로 떨어지면 자동 해제될 최소 잔여 시간")]
+    public float ghostMinTimeToKeep = 2f;
+
+    [Tooltip("최대 지속 시간 (0이면 무제한)")]
+    public float ghostMaxDuration = 0f;
+
     [Header("Passive Stats (Only for Passive)")]
-    // [핵심] StatModifier 직접 사용 대신, 데이터 설정용 구조체 리스트 사용
     public List<TBSStatData> statBoosts = new List<TBSStatData>();
+
 }

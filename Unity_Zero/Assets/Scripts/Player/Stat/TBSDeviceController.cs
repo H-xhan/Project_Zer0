@@ -159,4 +159,67 @@ public class TBSDeviceController : MonoBehaviour
 
         // 액티브 앱은 ActiveSkillModule이 RefreshSkills()에서 처리함
     }
+
+    // 하드웨어 레벨을 외부에서 읽을 수 있게 프로퍼티 추가
+    public int RamLevel => _hardwareState.ramLevel;
+    public int CpuLevel => _hardwareState.cpuLevel;
+    public int BatteryLevel => _hardwareState.batteryLevel;
+    public int HeatsinkLevel => _hardwareState.heatsinkLevel;
+
+    // 아래 계수들은 나중에 TimeConfigSO나 별도 HardwareConfigSO로 빼면 됨
+    public float GetCpuCooldownMultiplier()
+    {
+        // 예시: 레벨별 쿨타임 배수
+        // 0레벨: 1.00, 1레벨: 0.95, 2레벨: 0.90, 3레벨: 0.85
+        switch (CpuLevel)
+        {
+            default:
+            case 0: return 1.00f;
+            case 1: return 0.95f;
+            case 2: return 0.90f;
+            case 3: return 0.85f;
+        }
+    }
+
+    public float GetCpuTimeCostMultiplier()
+    {
+        // 예시: 레벨별 시간 소모 배수
+        // 0: 1.00, 1: 0.97, 2: 0.94, 3: 0.90
+        switch (CpuLevel)
+        {
+            default:
+            case 0: return 1.00f;
+            case 1: return 0.97f;
+            case 2: return 0.94f;
+            case 3: return 0.90f;
+        }
+    }
+
+    public float GetBatteryDamageMultiplier()
+    {
+        // 예시: 스킬 데미지 배수
+        // 0: 1.00, 1: 1.10, 2: 1.20, 3: 1.35
+        switch (BatteryLevel)
+        {
+            default:
+            case 0: return 1.00f;
+            case 1: return 1.10f;
+            case 2: return 1.20f;
+            case 3: return 1.35f;
+        }
+    }
+
+    public float GetHeatsinkHitTimeLossMultiplier()
+    {
+        // 예시: 피격 시 시간 손실 감소
+        // 0: 1.00, 1: 0.9, 2: 0.8, 3: 0.7
+        switch (HeatsinkLevel)
+        {
+            default:
+            case 0: return 1.00f;
+            case 1: return 0.90f;
+            case 2: return 0.80f;
+            case 3: return 0.70f;
+        }
+    }
 }

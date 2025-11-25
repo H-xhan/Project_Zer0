@@ -45,6 +45,13 @@ public class MovementModule
     float _exhaustStopTimer;
     bool _pendingGroundStop;
 
+    private float _speedMultiplier = 1f;   // 기본 1.0
+
+    public void SetSpeedMultiplier(float value)
+    {
+        _speedMultiplier = Mathf.Max(0f, value);   // 0 미만으로는 안 떨어지게
+    }
+
     // 초기화: 필수 참조 연결
     public void Initialize(PlayerController player, CharacterController controller, Transform root, EfficiencyModule efficiencyModule)
     {
@@ -148,7 +155,6 @@ public class MovementModule
     // 수평 이동 벡터 계산
     void MoveHorizontal()
     {
-        // 소진 정지 중에는 입력 무시
         Vector2 useInput = (_exhaustStopTimer > 0f) ? Vector2.zero : _moveInput;
 
         Vector3 fwd = _tf.forward;
@@ -160,10 +166,13 @@ public class MovementModule
         right.Normalize();
 
         Vector3 dir = (fwd * useInput.y + right * useInput.x);
-        float speed = _walkSpeed * (_sprinting ? _sprintMultiplier : 1f);
+
+        float baseSpeed = _walkSpeed * (_sprinting ? _sprintMultiplier : 1f);
+        float speed = baseSpeed * _speedMultiplier;   // ← 스텔스 패널티 반영
 
         _planarVel = dir * speed;
     }
+
 
     // 점프와 중력 처리
     void JumpAndGravity()

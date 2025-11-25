@@ -26,10 +26,8 @@ public class Skill_Rewind : TBSSkill
     private GhostTrailController _ghostTrailController;
 
     public Skill_Rewind(PlayerController player,
-                        TimeSystemController timeSystem,
-                        float cooldown,
-                        float timeCost)
-        : base(player, timeSystem, cooldown, timeCost)
+                        TimeSystemController timeSystem,float cooldown,float timeCost, float damageMultiplier)
+        : base(player, timeSystem, cooldown, timeCost, damageMultiplier)
     {
         if (player != null)
         {

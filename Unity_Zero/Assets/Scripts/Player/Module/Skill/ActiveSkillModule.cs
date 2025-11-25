@@ -60,20 +60,66 @@ public class ActiveSkillModule
         if (_player == null || _timeSystem == null || app == null)
             return null;
 
-        // 디버그용: 현재 appId 확인
-        string id = app.appId != null ? app.appId.Trim() : string.Empty;
-        Debug.Log($"[ActiveSkillModule] 스킬 생성 시도: id = {id}");
+        float cooldown = app.baseCooldown;
+        float timeCost = app.baseTimeCost;
+        float damageMul = 1f;
 
-        // [임시 정책]
-        //  - 일단 모든 Active 앱은 Skill_Rewind로 생성
-        //  - 나중에 ID / 타입별로 분기 추가 예정
-        return new Skill_Rewind(
-            _player,
-            _timeSystem,
-            app.baseCooldown,
-            app.baseTimeCost
-        );
+        if (_device != null)
+        {
+            cooldown *= _device.GetCpuCooldownMultiplier();
+            timeCost *= _device.GetCpuTimeCostMultiplier();
+            damageMul = _device.GetBatteryDamageMultiplier();
+        }
+
+        switch (app.appId)
+        {
+            case "Smart_Aim":
+                return new Skill_SmartAim(
+                    _player,
+                    _timeSystem,
+                    cooldown,
+                    timeCost,
+                    damageMul,
+                    app.smartAimDuration,
+                    app.smartAimMaxLockAngle,
+                    app.smartAimHomingStrength
+                );
+
+            case "Ghost_Protocol":
+                {
+                    var stealthModule = _player.GetComponentInChildren<PlayerStealthModule>();
+
+                    if (stealthModule == null)
+                        Debug.LogWarning("[ActiveSkillModule] Ghost_Protocol 사용을 위해 PlayerStealthModule이 필요합니다.");
+
+                    return new Skill_GhostProtocol(
+                        _player,
+                        _timeSystem,
+                        cooldown,
+                        timeCost,
+                        damageMul,
+                        stealthModule,
+                        app.ghostBaseCostPerSec,
+                        app.ghostMaxCostPerSec,
+                        app.ghostGrowthPerSec,
+                        app.ghostMinTimeToKeep,
+                        app.ghostMaxDuration
+                    );
+                }
+
+            case "Rewind":
+            default:
+                return new Skill_Rewind(
+                    _player,
+                    _timeSystem,
+                    cooldown,
+                    timeCost,
+                    damageMul
+                );
+        }
     }
+
+
 
     // TBSDeviceController.Update()에서 매 프레임 호출
     public void Tick(float deltaTime)
@@ -81,7 +127,13 @@ public class ActiveSkillModule
         for (int i = 0; i < _skills.Count; i++)
         {
             if (_skills[i] is Skill_Rewind rewind)
+            {
                 rewind.Tick();
+            }
+            else if (_skills[i] is Skill_GhostProtocol ghost)
+            {
+                ghost.Tick(deltaTime);
+            }
         }
     }
 
@@ -102,7 +154,6 @@ public class ActiveSkillModule
 
         TBSSkill skill = _skills[slotIndex];
 
-        // 슬롯에 스킬이 없는 경우 (앱이 없거나, Passive 앱이거나, 미구현 앱)
         if (skill == null)
         {
             var apps = _device?.EquippedApps;
@@ -115,6 +166,14 @@ public class ActiveSkillModule
             return;
         }
 
+        // Ghost_Protocol은 토글형
+        if (skill is Skill_GhostProtocol ghostSkill)
+        {
+            ghostSkill.Toggle();
+            return;
+        }
+
+        // 나머지는 기존대로 단발 Use()
         skill.Use();
     }
 }

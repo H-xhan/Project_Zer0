@@ -58,6 +58,15 @@ public class PlayerController : MonoBehaviour
     [Tooltip("플레이어 애니메이터 (비워두면 자식에서 검색)")]
     public Animator animatorSource;
 
+    [Header("Stealth Settings")]
+    [Tooltip("플레이어 스텔스 모듈 (자식 Stealth 오브젝트에 붙어 있음)")]
+    public PlayerStealthModule stealthModule;
+
+    [Tooltip("스텔스 상태일 때 이동 속도 배율 (1 = 그대로, 0.7 = 30% 감소)")]
+    [Range(0f, 1f)]
+    public float stealthSpeedMultiplier = 0.7f;
+
+
     // 이동과 관련된 실제 물리 이동을 처리하는 컴포넌트
     private CharacterController _cc;
 
@@ -184,6 +193,10 @@ public class PlayerController : MonoBehaviour
         // 디바이스 컨트롤러 찾기
         _deviceController = GetComponent<TBSDeviceController>();
 
+        //투명화 상태에서 이동 속도 보정 적용을 위한 모듈 참조
+        if (stealthModule == null)
+            stealthModule = GetComponentInChildren<PlayerStealthModule>();
+
         // 인벤토리 초기화
         if (inventory != null)
             inventory.Init();
@@ -229,25 +242,40 @@ public class PlayerController : MonoBehaviour
         // [중요] 매 프레임 스탯 동기화 (Stat -> Module)
         if (movement != null && playerStats != null)
         {
-            // 스탯 값을 가져와서 이동 모듈에 주입
-            movement.SetWalkSpeed(playerStats.WalkSpeed.Value);
+            float baseWalkSpeed = playerStats.WalkSpeed.Value;
+            float finalWalkSpeed = baseWalkSpeed;
+
+            // 스텔스 중이면 속도 패널티 적용
+            if (stealthModule != null && stealthModule.IsInvisible)
+            {
+                finalWalkSpeed *= stealthSpeedMultiplier;
+            }
+
+            movement.SetWalkSpeed(finalWalkSpeed);
         }
 
-        // [추가] Q, E 키 입력 시 디바이스에게 "스킬 써!" 명령
+        // [추가] Q, E, R 키 입력 시 디바이스에게 "스킬 써!" 명령
         if (_deviceController != null)
         {
             if (Input.GetKeyDown(KeyCode.Q))
             {
                 Debug.Log("Q 키 입력 감지됨! (0번 슬롯 실행 요청)");
-                _deviceController.UseQuickSlot(0); // 0번 슬롯 실행
+                _deviceController.UseQuickSlot(0);
             }
 
             if (Input.GetKeyDown(KeyCode.E))
             {
                 Debug.Log("E 키 입력 감지됨! (1번 슬롯 실행 요청)");
-                _deviceController.UseQuickSlot(1); // 1번 슬롯 실행
+                _deviceController.UseQuickSlot(1);
+            }
+
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                Debug.Log("R 키 입력 감지됨! (2번 슬롯 실행 요청 - Ghost_Protocol)");
+                _deviceController.UseQuickSlot(2); // Ghost_Protocol이 장착된 슬롯 인덱스
             }
         }
+
 
         // 인벤토리 열기/닫기 입력 처리
         if (Input.GetKeyDown(inventoryKey))

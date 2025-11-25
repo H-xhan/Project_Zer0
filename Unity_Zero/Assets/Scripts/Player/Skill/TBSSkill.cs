@@ -9,11 +9,13 @@ public abstract class TBSSkill
     protected float _cooldown;
     protected float _timeCost;
     protected float _nextAvailableTime = 0f;
+    protected float _damageMultiplier = 1f;
 
     public TBSSkill(PlayerController player,
                     TimeSystemController timeSystem,
                     float cooldown,
-                    float timeCost)
+                    float timeCost,
+                    float damageMultiplier = 1f)
     {
         _player = player;
         _stats = player != null ? player.GetComponent<PlayerStats>() : null;
@@ -21,6 +23,7 @@ public abstract class TBSSkill
 
         _cooldown = cooldown;
         _timeCost = timeCost;
+        _damageMultiplier = Mathf.Max(0.1f, damageMultiplier);
     }
 
     public bool CanUse()
@@ -39,6 +42,8 @@ public abstract class TBSSkill
         // 시간 부족
         if (!_timeSystem.HasEnoughTime(_timeCost))
             return false;
+
+        Debug.Log($"[Skill Use] {_player.name} 스킬 사용. NextAvailableTime = {_nextAvailableTime}");
 
         return true;
     }
