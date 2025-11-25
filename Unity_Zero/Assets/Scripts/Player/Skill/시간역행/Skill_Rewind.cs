@@ -7,24 +7,23 @@ public class Skill_Rewind : TBSSkill
 
     private float _recordInterval = 0.05f;
     private float _recordTimer = 0f;
-    private float _rewindSeconds = 3f;
+    private float _rewindSeconds = 10f;
 
     private bool _isRewinding = false;
     private int _currentIndex = -1;
 
-    // Trail
-    private TrailRenderer _trail;
-    private Transform _trailPivot;
-
     // 이동 제어
     private CharacterController _controller;
-    private float _baseRewindSpeed = 12f;
+    private float _baseRewindSpeed = 50f;
     private float _easingStrength = 0.4f;
 
     // 비주얼 연출용
     private Renderer[] _renderers;
     private readonly Dictionary<Material, Color> _originalColors = new Dictionary<Material, Color>();
     private Color _rewindColor = new Color(0.5f, 1f, 1f, 0.7f); // 홀로그램 느낌
+
+    // 잔상 스냅샷 컨트롤러 (TrailRenderer 대체)
+    private GhostTrailController _ghostTrailController;
 
     public Skill_Rewind(PlayerController player,
                         TimeSystemController timeSystem,
@@ -37,14 +36,8 @@ public class Skill_Rewind : TBSSkill
             _controller = player.GetComponent<CharacterController>();
             _renderers = player.GetComponentsInChildren<Renderer>();
 
-            // 플레이어나 자식에 붙어 있는 TrailRenderer 자동 탐색
-            _trailPivot = _player.transform.Find("TrailPivot");         // TrailPivot 찾기
-            _trail = player.GetComponentInChildren<TrailRenderer>();
-            if (_trail != null)
-            {
-                _trail.emitting = false;   // 기본은 꺼두기
-                _trail.Clear();
-            }
+            // 잔상 스냅샷 컨트롤러 자동 검색 (플레이어나 자식 오브젝트에 붙어 있어야 함)
+            _ghostTrailController = player.GetComponentInChildren<GhostTrailController>();
         }
     }
 
@@ -89,8 +82,9 @@ public class Skill_Rewind : TBSSkill
         if (_controller != null)
             _controller.enabled = false;
 
-        if (_trail != null)
-            _trail.emitting = true;
+        // 잔상 스냅샷 시작
+        if (_ghostTrailController != null)
+            _ghostTrailController.SetActive(true);
 
         SetRewindVisuals(true);
 
@@ -122,7 +116,17 @@ public class Skill_Rewind : TBSSkill
             return;
         }
 
+        // 플레이어 이동
         _player.transform.position = Vector3.MoveTowards(current, target, step);
+
+        // 해당 "과거 프레임 위치"에 잔상 생성
+        if (_ghostTrailController != null)
+        {
+            _ghostTrailController.SpawnSnapshotAt(
+                target,                // 과거 위치
+                _player.transform.rotation // 현재 회전 or 저장한 회전
+            );
+        }
     }
 
     private void FinishRewind()
@@ -137,8 +141,9 @@ public class Skill_Rewind : TBSSkill
             _controller.enabled = true;
         }
 
-        if (_trail != null)
-            _trail.emitting = false;
+        // 잔상 스냅샷 종료
+        if (_ghostTrailController != null)
+            _ghostTrailController.SetActive(false);
 
         SetRewindVisuals(false);
 
@@ -147,7 +152,6 @@ public class Skill_Rewind : TBSSkill
 
     private void SetRewindVisuals(bool active)
     {
-        // 색 변경
         if (_renderers != null)
         {
             foreach (var rend in _renderers)
@@ -177,21 +181,6 @@ public class Skill_Rewind : TBSSkill
 
             if (!active)
                 _originalColors.Clear();
-        }
-
-        // [핵심 추가] Trail on/off
-        if (_trail != null)
-        {
-            if (active)
-            {
-                _trail.Clear();      // 이전 잔상 지우고
-                _trail.emitting = true;
-            }
-            else
-            {
-                _trail.emitting = false;
-                _trail.Clear();      // 끝날 때도 한번 정리
-            }
         }
     }
 }
