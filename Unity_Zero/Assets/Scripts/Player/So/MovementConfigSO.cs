@@ -36,10 +36,7 @@ public class MovementConfigSO : ScriptableObject
     [Tooltip("경사면에서 지면에 붙게 하는 보정 값 (음수 권장)")]
     public float groundedStick = -2f;
 
-    [Header("Sprint Exhaust")]
-    [Tooltip("효율 소진 시 스프린트를 즉시 중단할지 여부")]
-    public bool stopOnSprintExhaust = true;
-
-    [Tooltip("효율 소진 후 강제 제약 지속 시간")]
-    public float exhaustStopDuration = 0.2f;
+    [Header("Landing Lock")]
+    [Tooltip("착지 후 이동/점프를 막는 시간(초)")]
+    public float landingLockDuration = 0.4f;
 }

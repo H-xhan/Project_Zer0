@@ -26,10 +26,6 @@ public class MovementModule
     float _coyoteTime = 0.1f;
     float _jumpBufferTime = 0.1f;
 
-    // 스프린트 소진 후 정지 관련
-    bool _stopOnSprintExhaust = true;
-    float _exhaustStopDuration = 0.2f;
-
     // 상태 값
     Vector2 _moveInput;
     Vector3 _planarVel;
@@ -37,6 +33,10 @@ public class MovementModule
     bool _grounded;
     bool _sprinting;
     bool _jumpTriggered;
+
+    // 착지 후 잠깐 이동 락
+    float _landingLockDuration = 0.4f; // 원하는 값으로 조정 (0.2~0.4 정도)
+    float _landingLockTimer;
 
     // 타이머
     float _jumpCDTimer;
@@ -76,7 +76,8 @@ public class MovementModule
         float gravity,
         float groundedStick,
         bool stopOnExhaust,
-        float exhaustStopDuration
+        float exhaustStopDuration,
+        float landingLockDuration
     )
     {
         _jumpCooldown = Mathf.Max(0f, jumpCooldown);
@@ -92,8 +93,7 @@ public class MovementModule
         _gravity = gravity;
         _groundedStick = groundedStick;
 
-        _stopOnSprintExhaust = stopOnExhaust;
-        _exhaustStopDuration = Mathf.Max(0f, exhaustStopDuration);
+        _landingLockDuration = Mathf.Max(0f, landingLockDuration);
     }
 
     // 매 프레임 이동 처리
@@ -111,18 +111,17 @@ public class MovementModule
         if (_jumpCDTimer > 0f)
             _jumpCDTimer -= Time.deltaTime;
 
+        if (_landingLockTimer > 0f)
+            _landingLockTimer -= Time.deltaTime;
+
         ReadInput();
+
         UpdateSprintState();
 
-        // 공중에서 소진된 상태였다면 착지 시 잠시 정지
-        if (_pendingGroundStop && _cc.isGrounded)
-        {
-            _exhaustStopTimer = Mathf.Max(_exhaustStopTimer, _exhaustStopDuration);
-            _pendingGroundStop = false;
-        }
-
         MoveHorizontal();
+
         JumpAndGravity();
+
         ApplyMovement();
     }
 
@@ -137,7 +136,8 @@ public class MovementModule
         if (Input.GetButtonDown("Jump"))
         {
             bool fallingOrGrounded = _grounded || _verticalVel <= 0f;
-            if (fallingOrGrounded)
+            // 착지 락 중엔 점프 버퍼 기록 금지
+            if (fallingOrGrounded && _landingLockTimer <= 0f)
                 _lastJumpPressedTime = Time.time;
         }
     }
@@ -155,7 +155,9 @@ public class MovementModule
     // 수평 이동 벡터 계산
     void MoveHorizontal()
     {
-        Vector2 useInput = (_exhaustStopTimer > 0f) ? Vector2.zero : _moveInput;
+        Vector2 useInput = (_exhaustStopTimer > 0f || _landingLockTimer > 0f)
+            ? Vector2.zero
+            : _moveInput;
 
         Vector3 fwd = _tf.forward;
         fwd.y = 0f;
@@ -168,7 +170,7 @@ public class MovementModule
         Vector3 dir = (fwd * useInput.y + right * useInput.x);
 
         float baseSpeed = _walkSpeed * (_sprinting ? _sprintMultiplier : 1f);
-        float speed = baseSpeed * _speedMultiplier;   // ← 스텔스 패널티 반영
+        float speed = baseSpeed * _speedMultiplier;
 
         _planarVel = dir * speed;
     }
@@ -177,22 +179,25 @@ public class MovementModule
     // 점프와 중력 처리
     void JumpAndGravity()
     {
+        bool wasGrounded = _grounded;
         _grounded = _cc.isGrounded;
         _jumpTriggered = false;
 
         if (_grounded)
-            _lastGroundedTime = Time.time;
-
-        if (_grounded)
         {
-            // 지면에 단단히 붙게 하는 보정
+            // 공중 → 지상으로 바뀐 첫 프레임에 락 시작
+            if (!wasGrounded && _landingLockDuration > 0f)
+                _landingLockTimer = _landingLockDuration;
+
             if (_verticalVel < _groundedStick)
                 _verticalVel = _groundedStick;
+
+            _lastGroundedTime = Time.time;
 
             bool buffered = (Time.time - _lastJumpPressedTime) <= _jumpBufferTime;
             bool cdReady = (_jumpCDTimer <= 0f);
 
-            if (_exhaustStopTimer <= 0f && buffered && cdReady)
+            if (_exhaustStopTimer <= 0f && _landingLockTimer <= 0f && buffered && cdReady)
                 TryJump();
         }
         else
@@ -204,7 +209,6 @@ public class MovementModule
             if (_exhaustStopTimer <= 0f && withinCoyote && buffered && cdReady)
                 TryJump();
 
-            // 공중 중력 적용
             _verticalVel += _gravity * Time.deltaTime;
         }
     }
@@ -256,22 +260,6 @@ public class MovementModule
         bool v = _jumpTriggered;
         _jumpTriggered = false;
         return v;
-    }
-
-    // 효율 시스템에서 강제 스프린트 정지 요청 시 사용 가능
-    public void ForceStopSprint()
-    {
-        _sprinting = false;
-
-        if (!_stopOnSprintExhaust)
-            return;
-
-        if (!_cc.isGrounded)
-            _pendingGroundStop = true;
-        else
-            _exhaustStopTimer = Mathf.Max(_exhaustStopTimer, _exhaustStopDuration);
-
-        _moveInput = Vector2.zero;
     }
 
     public void SetWalkSpeed(float speed)

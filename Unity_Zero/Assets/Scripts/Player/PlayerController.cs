@@ -116,6 +116,10 @@ public class PlayerController : MonoBehaviour
 
         [Tooltip("효율 소진 후 강제 제약 지속 시간")]
         public float exhaustStopDuration;
+
+        [Header("착지 락")]
+        [Tooltip("착지 후 이동/점프를 막는 시간(초)")]
+        public float landingLockDuration;
     }
 
     // 효율 시스템 튜닝 구조체 (행동별 소모, 회복 규칙)
@@ -415,7 +419,8 @@ public class PlayerController : MonoBehaviour
             movementTuning.gravity,
             movementTuning.groundedStick,
             movementTuning.stopOnSprintExhaust,
-            movementTuning.exhaustStopDuration
+            movementTuning.exhaustStopDuration,
+            movementTuning.landingLockDuration
         );
 
         efficiency.SyncSettings(
@@ -452,8 +457,9 @@ public class PlayerController : MonoBehaviour
             movementTuning.gravity = moveCfg.gravity;
             movementTuning.groundedStick = moveCfg.groundedStick;
 
-            movementTuning.stopOnSprintExhaust = moveCfg.stopOnSprintExhaust;
-            movementTuning.exhaustStopDuration = moveCfg.exhaustStopDuration;
+            // 착지 락 시간 주입
+            movementTuning.landingLockDuration = moveCfg.landingLockDuration;
+
         }
 
         // Efficiency

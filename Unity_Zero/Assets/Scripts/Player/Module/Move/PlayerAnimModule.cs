@@ -32,6 +32,9 @@ public class PlayerAnimModule
     [Tooltip("턴으로 판단할 최소 입력값 절대값")]
     public float turnThreshold = 0.25f;
 
+    [Tooltip("턴 값 보간 속도")]
+    public float turnSmoothSpeed = 10f;
+
     [Header("Speed Param")]
     [Tooltip("실제 속도를 애니메이터 파라미터로 변환하는 스케일 값")]
     public float speedToParam = 0.25f;
@@ -55,6 +58,7 @@ public class PlayerAnimModule
 
     float _lastSpeedParam;
     bool _wasGrounded;
+    float _currentTurn;
 
     public void Init(Animator a)
     {
@@ -80,11 +84,8 @@ public class PlayerAnimModule
         if (!anim)
             return;
 
-        // [수정] 복잡한 계산식 대신 직관적으로 변경
-        // 걷기 속도가 약 4, 달리기 속도가 약 7이라고 가정할 때
-        // 블렌드 트리가 0(Idle), 0.5(Walk), 1(Run) 이라면:
-
         float target = 0f;
+
         if (planarSpeed > 0.1f)
         {
             // 달리는 중이면 1.0, 걷는 중이면 0.5 근처가 되도록 유도
@@ -98,8 +99,6 @@ public class PlayerAnimModule
             anim.SetFloat(paramSpeed, target, damp, dt);
 
         _lastSpeedParam = target;
-
-        // ... (나머지 코드는 그대로)
 
         // Falling
         bool isFalling = !grounded && verticalVelocity < fallingThreshold;
@@ -125,27 +124,41 @@ public class PlayerAnimModule
 
     // 회전 입력 기반 Turn 애니메이션 업데이트 
 
-    public void UpdateTurn(float rawTurnInput, float planarSpeed, bool grounded)
+    // 회전 입력 기반 Turn 애니메이션 업데이트 
+    public void UpdateTurn(float mouseX, float planarSpeed, bool grounded)
     {
         if (!anim)
             return;
 
-        if (string.IsNullOrEmpty(paramTurn) || string.IsNullOrEmpty(paramIsTurning))
+        // 이동 중이거나 공중이면 턴 애니 사용 안 함 (Idle에서만)
+        if (!grounded || planarSpeed > 0.1f)
+        {
+            if (!string.IsNullOrEmpty(paramIsTurning))
+                anim.SetBool(paramIsTurning, false);
             return;
+        }
 
-        // 마우스 입력 안정화 (감도 조절)
-        float targetTurn = Mathf.Clamp(rawTurnInput * 0.7f, -1f, 1f);
-        if (Mathf.Abs(targetTurn) < 0.05f)
-            targetTurn = 0f;
+        float absX = Mathf.Abs(mouseX);
 
-        // 부드럽게 보간 (회전 전환 완화)
-        _turnSmooth = Mathf.Lerp(_turnSmooth, targetTurn, Time.deltaTime * 6f);
+        // 마우스가 거의 안 움직이면 턴 종료
+        if (absX < turnThreshold)
+        {
+            if (!string.IsNullOrEmpty(paramIsTurning))
+                anim.SetBool(paramIsTurning, false);
+            return;
+        }
 
-        // 제자리 상태에서만 턴 활성화
-        bool isIdle = planarSpeed < 0.1f;
-        bool isTurning = grounded && isIdle && Mathf.Abs(_turnSmooth) > turnThreshold;
+        // 방향: 왼(-1) / 오른쪽(1)
+        float dir = mouseX > 0f ? 1f : -1f;
 
-        anim.SetFloat(paramTurn, _turnSmooth);
-        anim.SetBool(paramIsTurning, isTurning);
+        // 부드러운 전환용 보간
+        _currentTurn = Mathf.Lerp(_currentTurn, dir, turnSmoothSpeed * Time.deltaTime);
+
+        // Animator 파라미터 세팅
+        if (!string.IsNullOrEmpty(paramIsTurning))
+            anim.SetBool(paramIsTurning, true);
+
+        if (!string.IsNullOrEmpty(paramTurn))
+            anim.SetFloat(paramTurn, _currentTurn);
     }
 }

@@ -592,8 +592,8 @@ MonoBehaviour:
     autoRotateItems: 1
     rotateSpeed: 45
   timeSystem: {fileID: 677958697}
-  playerStats: {fileID: 0}
-  questLog: {fileID: 0}
+  playerStats: {fileID: 195545233}
+  questLog: {fileID: 195545234}
   cameraRig: {fileID: 1611988131}
   defaultCameraMode: 0
   viewToggleKey: 118
@@ -602,7 +602,7 @@ MonoBehaviour:
   hitOverlay: {fileID: 940609640}
   inventoryUI: {fileID: 1593858430}
   inventoryKey: 9
-  animatorSource: {fileID: 0}
+  animatorSource: {fileID: 195545237}
   stealthModule: {fileID: 661798879}
   stealthSpeedMultiplier: 0.5
   movementTuning:
@@ -618,6 +618,7 @@ MonoBehaviour:
     jumpBufferTime: 1
     stopOnSprintExhaust: 0
     exhaustStopDuration: 0.2
+    landingLockDuration: 0
   efficiencyTuning:
     max: 100
     walkDrainPerSecond: 0
@@ -655,6 +656,11 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!95 &195545237 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 220793b03379a1843b156333238acf41, type: 3}
+  m_PrefabInstance: {fileID: 195545229}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &299316662
 GameObject:
   m_ObjectHideFlags: 0
