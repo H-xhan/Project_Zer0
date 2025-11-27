@@ -69,29 +69,37 @@ public class PlayerAnimModule
     }
 
     public void Tick(
-        float dt,
-        float planarSpeed,
-        bool grounded,
-        float verticalVelocity,
-        bool jumpTriggered,
-        bool isSprinting
-    )
+         float dt,
+         float planarSpeed,
+         bool grounded,
+         float verticalVelocity,
+         bool jumpTriggered,
+         bool isSprinting
+     )
     {
         if (!anim)
             return;
 
-        // Speed
-        float target = Mathf.Max(0f, planarSpeed) * speedToParam;
+        // [수정] 복잡한 계산식 대신 직관적으로 변경
+        // 걷기 속도가 약 4, 달리기 속도가 약 7이라고 가정할 때
+        // 블렌드 트리가 0(Idle), 0.5(Walk), 1(Run) 이라면:
 
-        if ((!snapOnlyWhenGrounded || grounded) && target <= stopSnapThreshold)
-            target = 0f;
+        float target = 0f;
+        if (planarSpeed > 0.1f)
+        {
+            // 달리는 중이면 1.0, 걷는 중이면 0.5 근처가 되도록 유도
+            target = isSprinting ? 1.0f : 0.5f;
+        }
 
+        // 부드럽게 보간 (Damping)
         float damp = (target >= _lastSpeedParam) ? dampUp : dampDown;
 
         if (!string.IsNullOrEmpty(paramSpeed))
             anim.SetFloat(paramSpeed, target, damp, dt);
 
         _lastSpeedParam = target;
+
+        // ... (나머지 코드는 그대로)
 
         // Falling
         bool isFalling = !grounded && verticalVelocity < fallingThreshold;
