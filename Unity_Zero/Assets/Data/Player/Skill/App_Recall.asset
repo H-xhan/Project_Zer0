@@ -13,13 +13,12 @@ MonoBehaviour:
   m_Name: App_Recall
   m_EditorClassIdentifier: 
   appId: Recall
-  displayName: "\uC2DC\uAC04 \uC5ED\uD589"
-  description: "\uC0AC\uC6A9\uC2DC 15\uCD08\uC758 \uBE44\uC6A9\uC744 \uC9C0\uBD88\uD558\uACE0
-    3\uCD08 \uC804\uC758 \uC704\uCE58\uB85C \uB3CC\uC544\uAC04\uB2E4 "
+  displayName: "\uC2DC\uAC04\uC5ED\uD589"
+  description: 
   icon: {fileID: 0}
   appType: 0
   memoryCost: 10
-  baseCooldown: 30
+  baseCooldown: 5
   baseTimeCost: 60
   smartAimDuration: 5
   smartAimMaxLockAngle: 20

@@ -1,184 +1,196 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class Skill_Rewind : TBSSkill
 {
-    private readonly List<Vector3> _positionHistory = new List<Vector3>();
+    private struct Snapshot
+    {
+        public Vector3 position;
+        public Quaternion rotation;
+        public float planarSpeed;
+        public float verticalVelocity;
+        public bool grounded;
+        public bool isSprinting;
+    }
 
-    private float _recordInterval = 0.05f;
-    private float _recordTimer = 0f;
-    private float _rewindSeconds = 10f;
+    private readonly List<Snapshot> _buffer = new List<Snapshot>();
 
-    private bool _isRewinding = false;
-    private int _currentIndex = -1;
+    // 기록 관련
+    private readonly float _recordInterval = 0.05f;   // 약 20FPS
+    private float _recordTimer;
+    private int _maxSnapshotCount;
 
-    // 이동 제어
-    private CharacterController _controller;
-    private float _baseRewindSpeed = 50f;
-    private float _easingStrength = 0.4f;
+    // 상태
+    private bool _isRewinding;
+    private int _rewindIndex;
 
-    // 비주얼 연출용
-    private Renderer[] _renderers;
-    private readonly Dictionary<Material, Color> _originalColors = new Dictionary<Material, Color>();
-    private Color _rewindColor = new Color(0.5f, 1f, 1f, 0.7f); // 홀로그램 느낌
+    // 되감기 속도 및 잔상 구간
+    private int _stepsPerFrame = 3;      // 한 프레임에 몇 개의 스냅샷을 소비할지 (높을수록 더 빠름)
+    private int _ghostLastFrames = 8;    // 마지막 몇 개 스냅샷 구간에서만 잔상 생성
+    private int _ghostStartIndex;        // 잔상을 찍기 시작할 인덱스
 
-    // 잔상 스냅샷 컨트롤러 (TrailRenderer 대체)
-    private GhostTrailController _ghostTrailController;
+    // 캐시
+    private readonly Transform _tf;
+    private readonly CharacterController _cc;
+    private readonly MovementModule _movement;
+    private readonly PlayerAnimModule _animModule;
+    private readonly GhostTrailController _ghostTrail;
 
-    public Skill_Rewind(PlayerController player,
-                        TimeSystemController timeSystem,float cooldown,float timeCost, float damageMultiplier)
-        : base(player, timeSystem, cooldown, timeCost, damageMultiplier)
+    public Skill_Rewind(
+        PlayerController player,
+        TimeSystemController timeSystem,
+        float cooldown,
+        float timeCost,
+        float damageMultiplier = 1f
+    ) : base(player, timeSystem, cooldown, timeCost, damageMultiplier)
     {
         if (player != null)
         {
-            _controller = player.GetComponent<CharacterController>();
-            _renderers = player.GetComponentsInChildren<Renderer>();
+            _tf = player.transform;
+            _cc = player.GetComponent<CharacterController>();
+            _movement = player.movement;
+            _animModule = player.animModule;
 
-            // 잔상 스냅샷 컨트롤러 자동 검색 (플레이어나 자식 오브젝트에 붙어 있어야 함)
-            _ghostTrailController = player.GetComponentInChildren<GhostTrailController>();
+            // 플레이어 자식에서 잔상 컨트롤러 찾기
+            _ghostTrail = player.GetComponentInChildren<GhostTrailController>();
         }
+
+        // 최근 N초만 기록 (예: 3초)
+        float recordWindow = 3.0f;
+        _maxSnapshotCount = Mathf.Max(10, Mathf.RoundToInt(recordWindow / _recordInterval));
     }
 
+    // TBSDeviceController.Update() -> ActiveSkillModule.Tick() 에서 매 프레임 호출됨
     public void Tick()
     {
-        if (_player == null)
+        if (_player == null || _tf == null)
             return;
 
         if (_isRewinding)
         {
-            UpdateRewind();
-            return;
+            TickRewind();
         }
+        else
+        {
+            TickRecord();
+        }
+    }
+
+    // 1) 평소에 스냅샷 기록
+    private void TickRecord()
+    {
+        if (_movement == null)
+            return;
 
         _recordTimer += Time.deltaTime;
-        if (_recordTimer >= _recordInterval)
-        {
-            _recordTimer = 0f;
-            RecordPosition();
-        }
-    }
-
-    private void RecordPosition()
-    {
-        _positionHistory.Add(_player.transform.position);
-
-        int maxCount = Mathf.CeilToInt(_rewindSeconds / _recordInterval) + 5;
-
-        if (_positionHistory.Count > maxCount)
-            _positionHistory.RemoveAt(0);
-    }
-
-    protected override void OnUse()
-    {
-        if (_isRewinding || _positionHistory.Count == 0)
+        if (_recordTimer < _recordInterval)
             return;
 
-        _isRewinding = true;
-        _player.SetRewindState(true);
-        _currentIndex = _positionHistory.Count - 1;
+        _recordTimer -= _recordInterval;
 
-        if (_controller != null)
-            _controller.enabled = false;
+        Snapshot snap = new Snapshot
+        {
+            position = _tf.position,
+            rotation = _tf.rotation,
+            planarSpeed = _movement.GetPlanarSpeed(),
+            verticalVelocity = _movement.GetVerticalVelocity(),
+            grounded = _movement.IsGrounded(),
+            isSprinting = _movement.IsSprinting()
+        };
 
-        // 잔상 스냅샷 시작
-        if (_ghostTrailController != null)
-            _ghostTrailController.SetActive(true);
+        if (_buffer.Count >= _maxSnapshotCount)
+            _buffer.RemoveAt(0);
 
-        SetRewindVisuals(true);
-
-        Debug.Log("[Skill_Rewind] 시간 역행 시작");
+        _buffer.Add(snap);
     }
 
-    private void UpdateRewind()
+    // 2) 되감기 실행 중
+    private void TickRewind()
     {
-        if (_currentIndex < 0)
+        if (_buffer.Count == 0 || _rewindIndex < 0)
         {
-            FinishRewind();
+            StopRewind();
             return;
         }
 
-        Vector3 target = _positionHistory[_currentIndex];
-        Vector3 current = _player.transform.position;
-
-        float distance = Vector3.Distance(current, target);
-
-        float normalizedIndex = 1f - ((float)_currentIndex / (_positionHistory.Count - 1));
-        float easeFactor = Mathf.Lerp(1f, _easingStrength, normalizedIndex);
-
-        float speed = _baseRewindSpeed * easeFactor;
-        float step = speed * Time.deltaTime;
-
-        if (distance < 0.05f)
+        // 한 프레임에 여러 스냅샷을 소비해서 빠르게 되감기
+        for (int i = 0; i < _stepsPerFrame; i++)
         {
-            _currentIndex--;
-            return;
-        }
-
-        // 플레이어 이동
-        _player.transform.position = Vector3.MoveTowards(current, target, step);
-
-        // 해당 "과거 프레임 위치"에 잔상 생성
-        if (_ghostTrailController != null)
-        {
-            _ghostTrailController.SpawnSnapshotAt(
-                target,                // 과거 위치
-                _player.transform.rotation // 현재 회전 or 저장한 회전
-            );
-        }
-    }
-
-    private void FinishRewind()
-    {
-        _isRewinding = false;
-        _player.SetRewindState(false);
-        _positionHistory.Clear();
-
-        if (_controller != null)
-        {
-            Physics.SyncTransforms();
-            _controller.enabled = true;
-        }
-
-        // 잔상 스냅샷 종료
-        if (_ghostTrailController != null)
-            _ghostTrailController.SetActive(false);
-
-        SetRewindVisuals(false);
-
-        Debug.Log("[Skill_Rewind] 시간 역행 완료");
-    }
-
-    private void SetRewindVisuals(bool active)
-    {
-        if (_renderers != null)
-        {
-            foreach (var rend in _renderers)
+            if (_rewindIndex < 0)
             {
-                if (rend == null) continue;
-
-                var mats = rend.materials;
-                for (int i = 0; i < mats.Length; i++)
-                {
-                    var mat = mats[i];
-                    if (mat == null) continue;
-
-                    if (active)
-                    {
-                        if (!_originalColors.ContainsKey(mat))
-                            _originalColors[mat] = mat.color;
-
-                        mat.color = _rewindColor;
-                    }
-                    else
-                    {
-                        if (_originalColors.TryGetValue(mat, out var orig))
-                            mat.color = orig;
-                    }
-                }
+                StopRewind();
+                return;
             }
 
-            if (!active)
-                _originalColors.Clear();
+            Snapshot snap = _buffer[_rewindIndex];
+
+            bool ccWasEnabled = false;
+            if (_cc != null)
+            {
+                ccWasEnabled = _cc.enabled;
+                _cc.enabled = false;
+            }
+
+            _tf.SetPositionAndRotation(snap.position, snap.rotation);
+
+            if (_cc != null)
+                _cc.enabled = ccWasEnabled;
+
+            // 애니메이션 상태 갱신 (그때와 비슷한 상태로만 맞춰줌)
+            if (_animModule != null)
+            {
+                _animModule.Tick(
+                    Time.deltaTime,
+                    snap.planarSpeed,
+                    snap.grounded,
+                    snap.verticalVelocity,
+                    false,              // 되감기 중에는 Jump 트리거는 사용 안 함
+                    snap.isSprinting
+                );
+
+                _animModule.UpdateTurn(0f, snap.planarSpeed, snap.grounded);
+            }
+
+            // 잔상: 마지막 구간에서만 생성
+            if (_ghostTrail != null && _rewindIndex <= _ghostStartIndex)
+            {
+                _ghostTrail.SpawnSnapshotAt(snap.position, snap.rotation);
+            }
+
+            _rewindIndex--;
         }
+    }
+
+    // Q 스킬 실제 발동 시점
+    protected override void OnUse()
+    {
+        if (_isRewinding)
+            return;
+
+        if (_buffer.Count == 0)
+            return;
+
+        StartRewind();
+    }
+
+    private void StartRewind()
+    {
+        _isRewinding = true;
+
+        if (_player != null)
+            _player.SetRewindState(true);
+
+        _rewindIndex = _buffer.Count - 1;
+
+        // 잔상을 보여줄 구간의 시작 인덱스 (마지막 _ghostLastFrames 만큼)
+        _ghostStartIndex = Mathf.Max(0, _buffer.Count - _ghostLastFrames);
+    }
+
+    private void StopRewind()
+    {
+        _isRewinding = false;
+
+        if (_player != null)
+            _player.SetRewindState(false);
     }
 }

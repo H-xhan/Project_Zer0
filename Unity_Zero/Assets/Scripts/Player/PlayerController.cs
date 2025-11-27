@@ -289,6 +289,10 @@ public class PlayerController : MonoBehaviour
         if (_inventoryOpen)
             return;
 
+        // [Rewind] 되감기 중이면 기본 플레이어 루프를 전부 잠근다
+        if (IsRewinding)
+            return;
+
         // 시점 전환 처리
         HandleViewToggle();
 

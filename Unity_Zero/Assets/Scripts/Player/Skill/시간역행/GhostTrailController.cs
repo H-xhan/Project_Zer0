@@ -83,15 +83,17 @@ public class GhostTrailController : MonoBehaviour
         _pool.Enqueue(instance);
     }
 
+    // 되감기 등에서 외부에서 좌표를 넘겨 잔상을 찍고 싶을 때 사용
     public void SpawnSnapshotAt(Vector3 pos, Quaternion rot)
     {
         GhostInstance ghost = GetFromPool();
         if (ghost == null) return;
+        if (targetSkinnedMesh == null) return;
 
         Transform ghostTransform = ghost.transform;
         ghostTransform.position = pos;
         ghostTransform.rotation = rot;
-        ghostTransform.localScale = Vector3.one;
+        ghostTransform.localScale = Vector3.one; // 원래 쓰던 값
 
         ghost.Initialize(ghostMaterial, ghostColor, ghostLifetime, ReturnToPool);
         ghost.BakeFromSkinnedMesh(targetSkinnedMesh);
@@ -99,10 +101,12 @@ public class GhostTrailController : MonoBehaviour
         ghost.gameObject.SetActive(true);
     }
 
+    // 자체 타이머(Update)에서 사용할 기본 잔상 생성
     private void SpawnSnapshot()
     {
         GhostInstance ghost = GetFromPool();
         if (ghost == null) return;
+        if (targetSkinnedMesh == null) return;
 
         Transform targetTransform = targetSkinnedMesh.transform;
 

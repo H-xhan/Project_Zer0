@@ -163,7 +163,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4c149ed2d4e79444b5debc25b118cb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSkinnedMesh: {fileID: 0}
+  targetSkinnedMesh: {fileID: 216671440}
   ghostMaterial: {fileID: 2100000, guid: 6f3246826d8e80e4e9e355d7eee82a6c, type: 2}
   ghostColor: {r: 0, g: 1, b: 1, a: 0.4509804}
   snapshotInterval: 0.05
@@ -493,7 +493,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8daa4b6d4cc5fdb45abe6525b306a2ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerStats: {fileID: 0}
+  playerStats: {fileID: 195545233}
   _hardwareState:
     ramLevel: 5
     batteryLevel: 0
@@ -501,7 +501,7 @@ MonoBehaviour:
     heatsinkLevel: 0
   _maxRam: 100
   _equippedApps:
-  - {fileID: 11400000, guid: 729b4ec667457c1458e1097cb9e08e05, type: 2}
+  - {fileID: 11400000, guid: 0e4c3ef3b43e0404d8ddeb9b052c5af2, type: 2}
   - {fileID: 11400000, guid: 44af72918d7407c409291c329592e137, type: 2}
   - {fileID: 11400000, guid: c4797ce592eb7984b8e13865a80ab95d, type: 2}
 --- !u!114 &195545233
@@ -565,6 +565,7 @@ MonoBehaviour:
     paramTurn: Turn
     paramIsTurning: IsTurning
     turnThreshold: 0.25
+    turnSmoothSpeed: 10
     speedToParam: 0.25
     stopSnapThreshold: 0.05
     snapOnlyWhenGrounded: 1
@@ -659,6 +660,11 @@ CharacterController:
 --- !u!95 &195545237 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 220793b03379a1843b156333238acf41, type: 3}
+  m_PrefabInstance: {fileID: 195545229}
+  m_PrefabAsset: {fileID: 0}
+--- !u!137 &216671440 stripped
+SkinnedMeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 2664098864995057252, guid: 220793b03379a1843b156333238acf41, type: 3}
   m_PrefabInstance: {fileID: 195545229}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &299316662
@@ -1218,7 +1224,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 395faa0b717767440b9c48a07560b3e4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetRenderer: {fileID: 0}
+  targetRenderer: {fileID: 216671440}
   ghostMaterial: {fileID: 2100000, guid: 24b023ce96c6b69499275094b491929a, type: 2}
   spawnInterval: 0.03
   ghostLifetime: 0.5
