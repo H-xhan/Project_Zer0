@@ -250,7 +250,7 @@ public class PlayerController : MonoBehaviour
             float finalWalkSpeed = baseWalkSpeed;
 
             // 스텔스 중이면 속도 패널티 적용
-            if (stealthModule != null && stealthModule.IsInvisible)
+            if (stealthModule != null && stealthModule.IsStealthActive)
             {
                 finalWalkSpeed *= stealthSpeedMultiplier;
             }

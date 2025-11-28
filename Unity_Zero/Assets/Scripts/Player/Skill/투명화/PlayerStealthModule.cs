@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,11 +13,21 @@ public class PlayerStealthModule : MonoBehaviour
     [Tooltip("스텔스 상태에서 사용할 홀로그램/투명 머티리얼")]
     [SerializeField] private Material stealthMaterial;
 
-    // 스텔스 전 원래 머티리얼 저장
+    [Tooltip("페이드 인/아웃 소요 시간")]
+    [SerializeField] private float fadeDuration = 0.35f;
+
+    // 원본 머티리얼 저장
     private readonly Dictionary<Renderer, Material[]> _originalMaterials = new Dictionary<Renderer, Material[]>();
 
+    // 페이드용 MaterialPropertyBlock
+    private readonly List<Renderer> _fadeRenderers = new List<Renderer>();
+
+    private Coroutine _fadeRoutine;
+
     public bool IsStealthActive { get; private set; }
-    public bool IsInvisible => IsStealthActive;
+
+    public bool IsStealthed => IsStealthActive;
+
 
     private void Awake()
     {
@@ -32,7 +43,6 @@ public class PlayerStealthModule : MonoBehaviour
             return;
 
         targetRenderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        Debug.Log($"[Stealth] SkinnedMeshRenderer 자동 검색: {targetRenderers.Length}개");
     }
 
     public void EnableStealth()
@@ -40,39 +50,14 @@ public class PlayerStealthModule : MonoBehaviour
         if (IsStealthActive)
             return;
 
-        if (stealthMaterial == null)
-        {
-            Debug.LogWarning("[Stealth] StealthMaterial이 비어 있습니다.");
-            return;
-        }
-
         CacheRenderersIfNeeded();
+        SwapToStealth();
 
-        // 자식의 모든 Renderer 기준으로 처리 (장비/머리 등 포함)
-        var renderers = GetComponentsInChildren<Renderer>(true);
+        if (_fadeRoutine != null)
+            StopCoroutine(_fadeRoutine);
 
-        foreach (var rend in renderers)
-        {
-            if (rend == null)
-                continue;
-
-            if (!_originalMaterials.ContainsKey(rend))
-                _originalMaterials.Add(rend, rend.sharedMaterials);
-
-            var src = rend.sharedMaterials;
-            if (src == null || src.Length == 0)
-                continue;
-
-            var newMats = new Material[src.Length];
-            for (int i = 0; i < newMats.Length; i++)
-                newMats[i] = stealthMaterial;
-
-            // materials 사용해서 인스턴스 생성
-            rend.materials = newMats;
-        }
-
+        _fadeRoutine = StartCoroutine(FadeTo(1f)); // 1 = 완전 스텔스
         IsStealthActive = true;
-        Debug.Log("[Stealth] Stealth 활성화 (Material Swap)");
     }
 
     public void DisableStealth()
@@ -80,18 +65,78 @@ public class PlayerStealthModule : MonoBehaviour
         if (!IsStealthActive)
             return;
 
-        foreach (var kvp in _originalMaterials)
+        if (_fadeRoutine != null)
+            StopCoroutine(_fadeRoutine);
+
+        _fadeRoutine = StartCoroutine(FadeTo(0f)); // 0 = 원래 모습
+        IsStealthActive = false;
+    }
+
+    private void SwapToStealth()
+    {
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        _fadeRenderers.Clear();
+
+        foreach (var rend in renderers)
         {
-            var rend = kvp.Key;
-            var mats = kvp.Value;
+            if (!_originalMaterials.ContainsKey(rend))
+                _originalMaterials.Add(rend, rend.sharedMaterials);
 
-            if (rend == null || mats == null)
-                continue;
+            // 스텔스 머티리얼로 교체
+            Material[] src = rend.sharedMaterials;
+            Material[] newMats = new Material[src.Length];
+            for (int i = 0; i < newMats.Length; i++)
+            {
+                newMats[i] = stealthMaterial;
+            }
 
-            rend.materials = mats;
+            rend.materials = newMats;
+            _fadeRenderers.Add(rend);
+        }
+    }
+
+    private IEnumerator FadeTo(float targetAlpha)
+    {
+        float time = 0f;
+        float startAlpha = 1f - targetAlpha; // enable: 0->1, disable: 1->0
+
+        while (time < fadeDuration)
+        {
+            time += Time.deltaTime;
+            float t = time / fadeDuration;
+
+            float alpha = Mathf.Lerp(startAlpha, targetAlpha, t);
+            ApplyAlpha(alpha);
+
+            yield return null;
         }
 
-        IsStealthActive = false;
-        Debug.Log("[Stealth] Stealth 비활성화 (Original Material 복구)");
+        ApplyAlpha(targetAlpha);
+
+        if (targetAlpha == 0f)
+            RestoreOriginal();
+    }
+
+    private void ApplyAlpha(float alpha)
+    {
+        foreach (var rend in _fadeRenderers)
+        {
+            if (rend == null) continue;
+
+            var mpb = new MaterialPropertyBlock();
+            rend.GetPropertyBlock(mpb);
+
+            mpb.SetColor("_BaseColor", new Color(1f, 1f, 1f, alpha));
+            rend.SetPropertyBlock(mpb);
+        }
+    }
+
+    private void RestoreOriginal()
+    {
+        foreach (var kvp in _originalMaterials)
+        {
+            if (kvp.Key != null)
+                kvp.Key.materials = kvp.Value;
+        }
     }
 }
