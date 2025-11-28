@@ -35,6 +35,10 @@ public class PlayerAnimModule
     [Tooltip("턴 값 보간 속도")]
     public float turnSmoothSpeed = 10f;
 
+    [Header("Direction")]
+    [Tooltip("전후 방향 입력 값 파라미터 이름 (float, -1 ~ 1)")]
+    public string paramForward = "Forward";
+
     [Header("Speed Param")]
     [Tooltip("실제 속도를 애니메이터 파라미터로 변환하는 스케일 값")]
     public float speedToParam = 0.25f;
@@ -78,7 +82,8 @@ public class PlayerAnimModule
          bool grounded,
          float verticalVelocity,
          bool jumpTriggered,
-         bool isSprinting
+         bool isSprinting,
+         float forwardInput   // [추가] 전후 입력
      )
     {
         if (!anim)
@@ -117,12 +122,14 @@ public class PlayerAnimModule
         if (!string.IsNullOrEmpty(paramIsSprinting))
             anim.SetBool(paramIsSprinting, isSprinting);
 
+        // Forward 입력(-1 ~ 1) 전달
+        if (!string.IsNullOrEmpty(paramForward))
+            anim.SetFloat(paramForward, forwardInput);
+
         _wasGrounded = grounded;
     }
 
     private float _turnSmooth; // 내부 보간용
-
-    // 회전 입력 기반 Turn 애니메이션 업데이트 
 
     // 회전 입력 기반 Turn 애니메이션 업데이트 
     public void UpdateTurn(float mouseX, float planarSpeed, bool grounded)

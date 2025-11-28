@@ -145,7 +145,8 @@ public class Skill_Rewind : TBSSkill
                     snap.grounded,
                     snap.verticalVelocity,
                     false,              // 되감기 중에는 Jump 트리거는 사용 안 함
-                    snap.isSprinting
+                    snap.isSprinting,
+                    0f                  // 되감기 중엔 전후 입력 없음 → 0으로 고정
                 );
 
                 _animModule.UpdateTurn(0f, snap.planarSpeed, snap.grounded);

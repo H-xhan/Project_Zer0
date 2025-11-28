@@ -267,4 +267,7 @@ public class MovementModule
         _walkSpeed = speed;
     }
 
+    //전후 입력값 반환 (-1 = 뒤, 1 = 앞)
+    public float GetForwardInput() => _moveInput.y;
+
 }

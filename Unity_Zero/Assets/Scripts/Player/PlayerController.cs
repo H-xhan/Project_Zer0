@@ -315,16 +315,20 @@ public class PlayerController : MonoBehaviour
         }
 
         bool sprinting = movement.IsSprinting();
+        float forwardInput = movement.GetForwardInput();
 
-        // 애니메이션 업데이트 (Speed, Jump, Fall, Land, Sprint)
+        // 애니메이션 업데이트 (Speed, Jump, Fall, Land, Sprint, Forward)
         animModule.Tick(
             Time.deltaTime,
             movement.GetPlanarSpeed(),
             movement.IsGrounded(),
             movement.GetVerticalVelocity(),
             jumpTrig,
-            sprinting
+            sprinting,
+            forwardInput
         );
+
+
 
         // Turn 애니메이션 업데이트 (마우스 X 기준)
         float mouseX = Input.GetAxisRaw("Mouse X");
