@@ -448,9 +448,6 @@ PrefabInstance:
       addedObject: {fileID: 1434099671}
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 220793b03379a1843b156333238acf41, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 661798878}
-    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 220793b03379a1843b156333238acf41, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 654027990}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 220793b03379a1843b156333238acf41, type: 3}
@@ -468,6 +465,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 220793b03379a1843b156333238acf41, type: 3}
       insertIndex: -1
       addedObject: {fileID: 195545232}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 220793b03379a1843b156333238acf41, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 195545238}
   m_SourcePrefab: {fileID: 100100000, guid: 220793b03379a1843b156333238acf41, type: 3}
 --- !u!4 &195545230 stripped
 Transform:
@@ -602,7 +602,7 @@ MonoBehaviour:
   inventoryUI: {fileID: 1593858430}
   inventoryKey: 9
   animatorSource: {fileID: 195545237}
-  stealthModule: {fileID: 661798879}
+  stealthModule: {fileID: 0}
   stealthSpeedMultiplier: 0.5
   movementTuning:
     walkSpeed: 4
@@ -660,6 +660,21 @@ Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 220793b03379a1843b156333238acf41, type: 3}
   m_PrefabInstance: {fileID: 195545229}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &195545238
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195545231}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38e2368c05291884e9976c43a9f3cc7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetRenderers: []
+  autoFindRenderersIfEmpty: 1
+  stealthMaterial: {fileID: 2100000, guid: 24b023ce96c6b69499275094b491929a, type: 2}
 --- !u!137 &216671440 stripped
 SkinnedMeshRenderer:
   m_CorrespondingSourceObject: {fileID: 2664098864995057252, guid: 220793b03379a1843b156333238acf41, type: 3}
@@ -1229,55 +1244,6 @@ MonoBehaviour:
   startAlpha: 0.45
   endAlpha: 0
   spawnCount: 10
---- !u!1 &661798877
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 661798878}
-  - component: {fileID: 661798879}
-  m_Layer: 0
-  m_Name: Stealth
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &661798878
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 661798877}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 195545230}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &661798879
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 661798877}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38e2368c05291884e9976c43a9f3cc7b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetRenderers:
-  - {fileID: 216671440}
-  stealthAlpha: 0.3
-  fadeOutDuration: 0.25
-  fadeInDuration: 0.2
 --- !u!1 &677958693
 GameObject:
   m_ObjectHideFlags: 0

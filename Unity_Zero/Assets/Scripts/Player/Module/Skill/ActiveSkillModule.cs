@@ -101,9 +101,7 @@ public class ActiveSkillModule
                         stealthModule,
                         app.ghostBaseCostPerSec,
                         app.ghostMaxCostPerSec,
-                        app.ghostGrowthPerSec,
-                        app.ghostMinTimeToKeep,
-                        app.ghostMaxDuration
+                        app.ghostGrowthPerSec
                     );
                 }
 

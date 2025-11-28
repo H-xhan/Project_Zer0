@@ -1,132 +1,97 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerStealthModule : MonoBehaviour
 {
-    [Tooltip("투명 처리할 스키닝 메쉬 렌더러들(몸, 머리, 장비 등)")]
+    [Tooltip("스텔스 적용 대상 SkinnedMeshRenderer. 비워두면 자식에서 자동 검색")]
     [SerializeField] private SkinnedMeshRenderer[] targetRenderers;
 
-    [Tooltip("투명화 시 목표 알파 값")]
-    [Range(0f, 1f)]
-    [SerializeField] private float stealthAlpha = 0.3f;
+    [Tooltip("Target Renderers가 비어 있을 때 자식에서 자동 검색 여부")]
+    [SerializeField] private bool autoFindRenderersIfEmpty = true;
 
-    [Tooltip("투명해지는데 걸리는 시간(초)")]
-    [SerializeField] private float fadeOutDuration = 0.25f;
+    [Tooltip("스텔스 상태에서 사용할 홀로그램/투명 머티리얼")]
+    [SerializeField] private Material stealthMaterial;
 
-    [Tooltip("복구되는데 걸리는 시간(초)")]
-    [SerializeField] private float fadeInDuration = 0.2f;
+    // 스텔스 전 원래 머티리얼 저장
+    private readonly Dictionary<Renderer, Material[]> _originalMaterials = new Dictionary<Renderer, Material[]>();
 
-    private readonly List<MaterialPropertyBlock> _mpbList = new List<MaterialPropertyBlock>();
-    private readonly List<Color> _baseColorList = new List<Color>();
-    private readonly List<bool> _useBaseColorProperty = new List<bool>();
-
-    private Coroutine _fadeRoutine;
     public bool IsStealthActive { get; private set; }
-
-    // PlayerController에서 쓰는 기존 API 호환용
     public bool IsInvisible => IsStealthActive;
 
     private void Awake()
     {
-        CacheRenderers();
+        CacheRenderersIfNeeded();
     }
 
-    private void CacheRenderers()
+    private void CacheRenderersIfNeeded()
     {
-        _mpbList.Clear();
-        _baseColorList.Clear();
-        _useBaseColorProperty.Clear();
+        if (targetRenderers != null && targetRenderers.Length > 0)
+            return;
 
-        if (targetRenderers == null) return;
+        if (!autoFindRenderersIfEmpty)
+            return;
 
-        foreach (var rend in targetRenderers)
-        {
-            if (rend == null) continue;
-
-            var mpb = new MaterialPropertyBlock();
-            rend.GetPropertyBlock(mpb);
-
-            var mat = rend.sharedMaterial;
-            if (mat == null)
-            {
-                _mpbList.Add(mpb);
-                _baseColorList.Add(Color.white);
-                _useBaseColorProperty.Add(true);
-                continue;
-            }
-
-            bool hasBaseColor = mat.HasProperty("_BaseColor");
-            Color baseColor = hasBaseColor ? mat.GetColor("_BaseColor") : mat.color;
-
-            _mpbList.Add(mpb);
-            _baseColorList.Add(baseColor);
-            _useBaseColorProperty.Add(hasBaseColor);
-        }
+        targetRenderers = GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        Debug.Log($"[Stealth] SkinnedMeshRenderer 자동 검색: {targetRenderers.Length}개");
     }
 
     public void EnableStealth()
     {
-        if (_fadeRoutine != null)
-            StopCoroutine(_fadeRoutine);
+        if (IsStealthActive)
+            return;
 
-        _fadeRoutine = StartCoroutine(FadeRoutine(1f, stealthAlpha, fadeOutDuration));
+        if (stealthMaterial == null)
+        {
+            Debug.LogWarning("[Stealth] StealthMaterial이 비어 있습니다.");
+            return;
+        }
+
+        CacheRenderersIfNeeded();
+
+        // 자식의 모든 Renderer 기준으로 처리 (장비/머리 등 포함)
+        var renderers = GetComponentsInChildren<Renderer>(true);
+
+        foreach (var rend in renderers)
+        {
+            if (rend == null)
+                continue;
+
+            if (!_originalMaterials.ContainsKey(rend))
+                _originalMaterials.Add(rend, rend.sharedMaterials);
+
+            var src = rend.sharedMaterials;
+            if (src == null || src.Length == 0)
+                continue;
+
+            var newMats = new Material[src.Length];
+            for (int i = 0; i < newMats.Length; i++)
+                newMats[i] = stealthMaterial;
+
+            // materials 사용해서 인스턴스 생성
+            rend.materials = newMats;
+        }
+
         IsStealthActive = true;
+        Debug.Log("[Stealth] Stealth 활성화 (Material Swap)");
     }
 
     public void DisableStealth()
     {
-        if (_fadeRoutine != null)
-            StopCoroutine(_fadeRoutine);
+        if (!IsStealthActive)
+            return;
 
-        _fadeRoutine = StartCoroutine(FadeRoutine(stealthAlpha, 1f, fadeInDuration));
+        foreach (var kvp in _originalMaterials)
+        {
+            var rend = kvp.Key;
+            var mats = kvp.Value;
+
+            if (rend == null || mats == null)
+                continue;
+
+            rend.materials = mats;
+        }
+
         IsStealthActive = false;
-    }
-
-    private IEnumerator FadeRoutine(float from, float to, float duration)
-    {
-        if (duration <= 0f)
-        {
-            ApplyAlpha(to);
-            yield break;
-        }
-
-        float elapsed = 0f;
-        while (elapsed < duration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            float alpha = Mathf.Lerp(from, to, t);
-            ApplyAlpha(alpha);
-            yield return null;
-        }
-
-        ApplyAlpha(to);
-    }
-
-    private void ApplyAlpha(float alpha)
-    {
-        if (targetRenderers == null) return;
-
-        int count = Mathf.Min(targetRenderers.Length, _mpbList.Count);
-        for (int i = 0; i < count; i++)
-        {
-            var rend = targetRenderers[i];
-            if (rend == null) continue;
-
-            var mpb = _mpbList[i];
-            var baseColor = _baseColorList[i];
-            bool useBaseColor = _useBaseColorProperty[i];
-
-            var c = baseColor;
-            c.a = alpha;
-
-            if (useBaseColor)
-                mpb.SetColor("_BaseColor", c);
-            else
-                mpb.SetColor("_Color", c);
-
-            rend.SetPropertyBlock(mpb);
-        }
+        Debug.Log("[Stealth] Stealth 비활성화 (Original Material 복구)");
     }
 }
