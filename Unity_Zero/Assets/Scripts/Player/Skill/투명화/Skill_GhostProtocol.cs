@@ -2,16 +2,18 @@ using UnityEngine;
 
 public class Skill_GhostProtocol : TBSSkill
 {
-    private PlayerStealthModule _stealthModule;
-
-    private bool _isActive;
-    private float _elapsed;
+    private readonly PlayerStealthModule _stealthModule;
+    private readonly GhostTrailController _ghostTrail;
 
     private readonly float _baseCostPerSec;
     private readonly float _maxCostPerSec;
     private readonly float _growthPerSec;
     private readonly float _minTimeToKeep;
     private readonly float _maxDuration;
+
+    private bool _isActive;
+    private float _elapsed;
+    private float _currentCostPerSec;
 
     public Skill_GhostProtocol(
         PlayerController player,
@@ -33,113 +35,80 @@ public class Skill_GhostProtocol : TBSSkill
         _growthPerSec = growthPerSec;
         _minTimeToKeep = minTimeToKeep;
         _maxDuration = maxDuration;
+
+        if (player != null)
+            _ghostTrail = player.GetComponentInChildren<GhostTrailController>();
     }
 
-    // Player 자식 오브젝트(Stealth)에 붙어 있는 모듈까지 포함해서 찾아오는 헬퍼
-    private void EnsureStealthModule()
-    {
-        if (_stealthModule != null)
-            return;
-
-        if (_player != null)
-        {
-            _stealthModule = _player.GetComponentInChildren<PlayerStealthModule>();
-            if (_stealthModule == null)
-            {
-                Debug.LogWarning("[Skill_GhostProtocol] PlayerStealthModule을 찾을 수 없습니다.");
-            }
-        }
-    }
-
-    // R 키로 호출할 메서드 (ActiveSkillModule에서 사용)
-    public void Toggle()
-    {
-        // 켜져 있으면 비용/쿨 없이 끄기
-        if (_isActive)
-        {
-            Deactivate();
-            return;
-        }
-
-        // 꺼져있을 때 켜는 경우만 기본 CanUse/쿨타임/초기 비용 적용
-        if (!CanUse())
-            return;
-
-        if (_timeSystem == null)
-            return;
-
-        // TBSSkill.Use() 로직을 그대로 수동 적용
-        _timeSystem.SpendTime(_timeCost);
-        _nextAvailableTime = Time.time + _cooldown;
-
-        Activate();
-    }
-
-    protected override void OnUse()
-    {
-        // 이 스킬은 Use()를 직접 호출하지 않고 Toggle()만 사용
-    }
-
-    private void Activate()
-    {
-        _isActive = true;
-        _elapsed = 0f;
-
-        EnsureStealthModule();
-        if (_stealthModule != null)
-            _stealthModule.SetInvisible(true);
-
-        Debug.Log("[Skill_GhostProtocol] 활성화");
-    }
-
-    private void Deactivate()
-    {
-        _isActive = false;
-        _elapsed = 0f;
-
-        EnsureStealthModule();
-        if (_stealthModule != null)
-            _stealthModule.SetInvisible(false);
-
-        Debug.Log("[Skill_GhostProtocol] 비활성화");
-    }
-
-    // 매 프레임 ActiveSkillModule.Tick()에서 호출
+    // 연속 스킬 유지 로직 (시간 소모 계산, 최대 지속시간 체크)
     public void Tick(float deltaTime)
     {
         if (!_isActive)
             return;
 
-        if (_timeSystem == null)
-        {
-            Deactivate();
-            return;
-        }
-
         _elapsed += deltaTime;
 
-        // 최대 지속 시간
-        if (_maxDuration > 0f && _elapsed >= _maxDuration)
+        // 최대 지속시간 넘으면 강제 종료
+        if (_elapsed >= _maxDuration)
         {
-            Debug.Log("[Skill_GhostProtocol] 최대 지속 시간 도달");
-            Deactivate();
+            StopSkill();
             return;
         }
 
-        // 남은 시간이 너무 적으면 자동 해제
-        if (!_timeSystem.HasEnoughTime(_minTimeToKeep))
+        // 초당 소모량 갱신(선형 증가 방식)
+        _currentCostPerSec = Mathf.Min(
+            _maxCostPerSec,
+            _baseCostPerSec + _growthPerSec * _elapsed
+        );
+
+        // 실제 시간 소모는 나중에 TimeSystemController 연동 시 추가
+        // (지금은 컴파일 안정화 우선)
+    }
+
+    // ActiveSkillModule.ExecuteSkill 에서 호출되는 토글 엔트리 포인트
+    public void Toggle()
+    {
+        if (_isActive)
         {
-            Debug.Log("[Skill_GhostProtocol] 잔여 시간 부족으로 자동 해제");
-            Deactivate();
-            return;
+            // 최소 유지시간 전에는 끄기 금지
+            if (_elapsed < _minTimeToKeep)
+                return;
+
+            StopSkill();
         }
+        else
+        {
+            StartSkill();
+        }
+    }
 
-        // 시간 소모량 계산 (선형 증가)
-        float costPerSec = _baseCostPerSec + _growthPerSec * _elapsed;
-        if (costPerSec > _maxCostPerSec)
-            costPerSec = _maxCostPerSec;
+    private void StartSkill()
+    {
+        _isActive = true;
+        _elapsed = 0f;
+        _currentCostPerSec = _baseCostPerSec;
 
-        float costThisFrame = costPerSec * deltaTime;
-        _timeSystem.SpendTime(costThisFrame);
+        if (_stealthModule != null)
+            _stealthModule.EnableStealth();
+
+        if (_ghostTrail != null)
+            _ghostTrail.SetContinuousTrail(true);
+    }
+
+    private void StopSkill()
+    {
+        _isActive = false;
+
+        if (_stealthModule != null)
+            _stealthModule.DisableStealth();
+
+        if (_ghostTrail != null)
+            _ghostTrail.SetContinuousTrail(false);
+    }
+
+    // TBSSkill 추상 메서드 구현 (이 스킬은 Toggle 기반이라 내부에서 사용 안 함)
+    protected override void OnUse()
+    {
+        // 사용 안 함
     }
 }

@@ -1,132 +1,132 @@
-using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerStealthModule : MonoBehaviour
 {
-    [SerializeField] private Renderer[] targetRenderers;
+    [Tooltip("투명 처리할 스키닝 메쉬 렌더러들(몸, 머리, 장비 등)")]
+    [SerializeField] private SkinnedMeshRenderer[] targetRenderers;
 
-    [SerializeField] private MovementModule movementModule;
-    [SerializeField] private float stealthSpeedMultiplier = 0.7f; // 70% 속도
+    [Tooltip("투명화 시 목표 알파 값")]
+    [Range(0f, 1f)]
+    [SerializeField] private float stealthAlpha = 0.3f;
 
-    [Range(0f, 1f)][SerializeField] private float visibleAlpha = 1f;
-    [Range(0f, 1f)][SerializeField] private float invisibleAlpha = 0.15f;
-    [SerializeField] private float fadeSpeed = 3f;
+    [Tooltip("투명해지는데 걸리는 시간(초)")]
+    [SerializeField] private float fadeOutDuration = 0.25f;
 
-    [SerializeField] private bool isInvisible;
+    [Tooltip("복구되는데 걸리는 시간(초)")]
+    [SerializeField] private float fadeInDuration = 0.2f;
 
-    public bool IsInvisible => isInvisible;
+    private readonly List<MaterialPropertyBlock> _mpbList = new List<MaterialPropertyBlock>();
+    private readonly List<Color> _baseColorList = new List<Color>();
+    private readonly List<bool> _useBaseColorProperty = new List<bool>();
 
-    private Material[][] _cachedMaterials;
-    private Color[][] _originalColors;
+    private Coroutine _fadeRoutine;
+    public bool IsStealthActive { get; private set; }
 
-    private float _currentAlpha;
-    private float _targetAlpha;
-
-    [SerializeField] private GhostTrailEffect ghostTrailEffect;
+    // PlayerController에서 쓰는 기존 API 호환용
+    public bool IsInvisible => IsStealthActive;
 
     private void Awake()
     {
-        if (targetRenderers == null || targetRenderers.Length == 0)
-            targetRenderers = GetComponentsInChildren<Renderer>();
-
-        CacheMaterialsAndColors();
-
-        isInvisible = false;
-        _currentAlpha = visibleAlpha;
-        _targetAlpha = visibleAlpha;
+        CacheRenderers();
     }
 
-    private void CacheMaterialsAndColors()
+    private void CacheRenderers()
     {
-        int count = targetRenderers.Length;
+        _mpbList.Clear();
+        _baseColorList.Clear();
+        _useBaseColorProperty.Clear();
 
-        _cachedMaterials = new Material[count][];
-        _originalColors = new Color[count][];
+        if (targetRenderers == null) return;
 
+        foreach (var rend in targetRenderers)
+        {
+            if (rend == null) continue;
+
+            var mpb = new MaterialPropertyBlock();
+            rend.GetPropertyBlock(mpb);
+
+            var mat = rend.sharedMaterial;
+            if (mat == null)
+            {
+                _mpbList.Add(mpb);
+                _baseColorList.Add(Color.white);
+                _useBaseColorProperty.Add(true);
+                continue;
+            }
+
+            bool hasBaseColor = mat.HasProperty("_BaseColor");
+            Color baseColor = hasBaseColor ? mat.GetColor("_BaseColor") : mat.color;
+
+            _mpbList.Add(mpb);
+            _baseColorList.Add(baseColor);
+            _useBaseColorProperty.Add(hasBaseColor);
+        }
+    }
+
+    public void EnableStealth()
+    {
+        if (_fadeRoutine != null)
+            StopCoroutine(_fadeRoutine);
+
+        _fadeRoutine = StartCoroutine(FadeRoutine(1f, stealthAlpha, fadeOutDuration));
+        IsStealthActive = true;
+    }
+
+    public void DisableStealth()
+    {
+        if (_fadeRoutine != null)
+            StopCoroutine(_fadeRoutine);
+
+        _fadeRoutine = StartCoroutine(FadeRoutine(stealthAlpha, 1f, fadeInDuration));
+        IsStealthActive = false;
+    }
+
+    private IEnumerator FadeRoutine(float from, float to, float duration)
+    {
+        if (duration <= 0f)
+        {
+            ApplyAlpha(to);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float alpha = Mathf.Lerp(from, to, t);
+            ApplyAlpha(alpha);
+            yield return null;
+        }
+
+        ApplyAlpha(to);
+    }
+
+    private void ApplyAlpha(float alpha)
+    {
+        if (targetRenderers == null) return;
+
+        int count = Mathf.Min(targetRenderers.Length, _mpbList.Count);
         for (int i = 0; i < count; i++)
         {
             var rend = targetRenderers[i];
             if (rend == null) continue;
 
-            // materials 호출은 여기서 단 1번만
-            _cachedMaterials[i] = rend.materials;
+            var mpb = _mpbList[i];
+            var baseColor = _baseColorList[i];
+            bool useBaseColor = _useBaseColorProperty[i];
 
-            int matCount = _cachedMaterials[i].Length;
-            _originalColors[i] = new Color[matCount];
+            var c = baseColor;
+            c.a = alpha;
 
-            for (int j = 0; j < matCount; j++)
-            {
-                var mat = _cachedMaterials[i][j];
+            if (useBaseColor)
+                mpb.SetColor("_BaseColor", c);
+            else
+                mpb.SetColor("_Color", c);
 
-                if (mat.HasProperty("_BaseColor"))
-                    _originalColors[i][j] = mat.GetColor("_BaseColor");
-                else
-                    _originalColors[i][j] = mat.color;
-            }
-        }
-    }
-
-    private void Update()
-    {
-        if (Mathf.Approximately(_currentAlpha, _targetAlpha))
-            return;
-
-        _currentAlpha = Mathf.MoveTowards(_currentAlpha, _targetAlpha, fadeSpeed * Time.deltaTime);
-        ApplyAlpha(_currentAlpha);
-    }
-
-    public void SetInvisible(bool value)
-    {
-        if (isInvisible == value)
-            return;
-
-        isInvisible = value;
-        _targetAlpha = isInvisible ? invisibleAlpha : visibleAlpha;
-
-        // 스텔스 켤 때 속도 패널티 적용
-        if (movementModule != null)
-        {
-            movementModule.SetSpeedMultiplier(
-                isInvisible ? stealthSpeedMultiplier : 1f
-            );
-        }
-
-        // 켤 때만 잔상
-        if (isInvisible && ghostTrailEffect != null)
-        {
-            ghostTrailEffect.PlayOneShotTrail();
-        }
-
-        // 해제 직전에 한 번 더 터뜨리고 싶으면 아래처럼:
-        
-        if (!isInvisible && ghostTrailEffect != null)
-        {
-            ghostTrailEffect.PlayOneShotTrail();
-        }
-        
-    }
-
-    private void ApplyAlpha(float alpha)
-    {
-        for (int i = 0; i < _cachedMaterials.Length; i++)
-        {
-            var mats = _cachedMaterials[i];
-            var origColors = _originalColors[i];
-
-            for (int j = 0; j < mats.Length; j++)
-            {
-                var mat = mats[j];
-                Color targetColor = new Color(
-                    origColors[j].r,
-                    origColors[j].g,
-                    origColors[j].b,
-                    alpha);
-
-                mat.color = targetColor;
-
-                if (mat.HasProperty("_BaseColor"))
-                    mat.SetColor("_BaseColor", targetColor);
-            }
+            rend.SetPropertyBlock(mpb);
         }
     }
 }

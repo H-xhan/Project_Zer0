@@ -1,131 +1,99 @@
-using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 public class GhostTrailController : MonoBehaviour
 {
-    [Tooltip("잔상을 만들 기준 스킨 메쉬 렌더러 (캐릭터 바디)")]
-    [SerializeField] private SkinnedMeshRenderer targetSkinnedMesh;
+    [Tooltip("잔상을 만들 기준 스키닝 메쉬 렌더러(몸 전체)")]
+    [SerializeField] private SkinnedMeshRenderer sourceRenderer;
 
-    [Tooltip("잔상에 사용할 머티리얼 (Unlit Transparent 권장)")]
+    [Tooltip("잔상에 사용할 머티리얼(Transparent/Fade 계열)")]
     [SerializeField] private Material ghostMaterial;
 
-    [Tooltip("잔상의 기본 색상 및 초기 투명도")]
-    [SerializeField] private Color ghostColor = new Color(0f, 1f, 1f, 0.6f);
+    [Tooltip("잔상 유지 시간(초)")]
+    [SerializeField] private float ghostLifetime = 0.5f;
 
-    [Tooltip("스냅샷 생성 간격 (초)")]
-    [SerializeField] private float snapshotInterval = 0.05f;
+    [Tooltip("연속 잔상 생성 주기(초) - R 스킬용")]
+    [SerializeField] private float trailSpawnInterval = 0.08f;
 
-    [Tooltip("각 잔상이 유지되는 시간 (초)")]
-    [SerializeField] private float ghostLifetime = 5f;
-
-    [Tooltip("미리 만들어둘 잔상 개수 (풀 크기)")]
-    [SerializeField] private int poolSize = 120;
-
-    private readonly Queue<GhostInstance> _pool = new Queue<GhostInstance>();
-    private float _timer;
-    private bool _isActive;
-
-    private void Awake()
-    {
-        InitializePool();
-    }
+    private bool _continuousActive;
+    private float _trailTimer;
 
     private void Update()
     {
-        if (!_isActive) return;
-        if (targetSkinnedMesh == null) return;
+        if (!_continuousActive)
+            return;
 
-        _timer += Time.deltaTime;
-
-        if (_timer >= snapshotInterval)
+        _trailTimer += Time.deltaTime;
+        if (_trailTimer >= trailSpawnInterval)
         {
-            _timer = 0f;
-            SpawnSnapshot();
+            _trailTimer = 0f;
+            // 현재 위치 기준으로 잔상 생성
+            SpawnSnapshotAt(transform.position, transform.rotation);
         }
     }
 
-    private void InitializePool()
+    // R 스킬용: 연속 잔상 on/off
+    public void SetContinuousTrail(bool active)
     {
-        for (int i = 0; i < poolSize; i++)
+        _continuousActive = active;
+        _trailTimer = 0f;
+    }
+
+    // Q 스킬용: 특정 위치/회전에 스냅샷 잔상 생성
+    public void SpawnSnapshotAt(Vector3 position, Quaternion rotation)
+    {
+        if (sourceRenderer == null || ghostMaterial == null)
+            return;
+
+        var mesh = new Mesh();
+        sourceRenderer.BakeMesh(mesh);
+
+        var ghostObj = new GameObject("GhostTrail_Snapshot");
+        var t = ghostObj.transform;
+        t.position = position;
+        t.rotation = rotation;
+        t.localScale = transform.lossyScale;
+
+        var mf = ghostObj.AddComponent<MeshFilter>();
+        mf.sharedMesh = mesh;
+
+        var mr = ghostObj.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = ghostMaterial;
+
+        StartCoroutine(FadeAndDestroy(ghostObj, mesh, mr));
+    }
+
+    private IEnumerator FadeAndDestroy(GameObject ghostObj, Mesh mesh, MeshRenderer mr)
+    {
+        var mpb = new MaterialPropertyBlock();
+
+        Color baseColor;
+        bool useBaseColor = ghostMaterial.HasProperty("_BaseColor");
+        if (useBaseColor)
+            baseColor = ghostMaterial.GetColor("_BaseColor");
+        else
+            baseColor = ghostMaterial.color;
+
+        float elapsed = 0f;
+
+        while (elapsed < ghostLifetime)
         {
-            GhostInstance instance = CreateGhostInstance();
-            instance.gameObject.SetActive(false);
-            _pool.Enqueue(instance);
+            elapsed += Time.deltaTime;
+            float t = 1f - Mathf.Clamp01(elapsed / ghostLifetime);
+
+            var c = baseColor;
+            c.a *= t;
+
+            if (useBaseColor)
+                mpb.SetColor("_BaseColor", c);
+            else
+                mpb.SetColor("_Color", c);
+
+            mr.SetPropertyBlock(mpb);
+            yield return null;
         }
-    }
 
-    private GhostInstance CreateGhostInstance()
-    {
-        GameObject go = new GameObject("GhostInstance");
-        go.transform.SetParent(transform);
-
-        GhostInstance ghost = go.AddComponent<GhostInstance>();
-
-        MeshFilter meshFilter = go.GetComponent<MeshFilter>();
-        if (meshFilter.sharedMesh == null)
-            meshFilter.sharedMesh = new Mesh();
-
-        return ghost;
-    }
-
-    private GhostInstance GetFromPool()
-    {
-        if (_pool.Count > 0)
-            return _pool.Dequeue();
-
-        GhostInstance extra = CreateGhostInstance();
-        extra.gameObject.SetActive(false);
-        return extra;
-    }
-
-    private void ReturnToPool(GhostInstance instance)
-    {
-        _pool.Enqueue(instance);
-    }
-
-    // 되감기 등에서 외부에서 좌표를 넘겨 잔상을 찍고 싶을 때 사용
-    public void SpawnSnapshotAt(Vector3 pos, Quaternion rot)
-    {
-        GhostInstance ghost = GetFromPool();
-        if (ghost == null) return;
-        if (targetSkinnedMesh == null) return;
-
-        Transform ghostTransform = ghost.transform;
-        ghostTransform.position = pos;
-        ghostTransform.rotation = rot;
-        ghostTransform.localScale = Vector3.one; // 원래 쓰던 값
-
-        ghost.Initialize(ghostMaterial, ghostColor, ghostLifetime, ReturnToPool);
-        ghost.BakeFromSkinnedMesh(targetSkinnedMesh);
-
-        ghost.gameObject.SetActive(true);
-    }
-
-    // 자체 타이머(Update)에서 사용할 기본 잔상 생성
-    private void SpawnSnapshot()
-    {
-        GhostInstance ghost = GetFromPool();
-        if (ghost == null) return;
-        if (targetSkinnedMesh == null) return;
-
-        Transform targetTransform = targetSkinnedMesh.transform;
-
-        Transform ghostTransform = ghost.transform;
-        ghostTransform.position = targetTransform.position;
-        ghostTransform.rotation = targetTransform.rotation;
-        ghostTransform.localScale = targetTransform.lossyScale;
-
-        ghost.Initialize(ghostMaterial, ghostColor, ghostLifetime, ReturnToPool);
-        ghost.BakeFromSkinnedMesh(targetSkinnedMesh);
-
-        ghost.gameObject.SetActive(true);
-    }
-
-    public void SetActive(bool active)
-    {
-        _isActive = active;
-
-        if (!active)
-            _timer = 0f;
+        Destroy(mesh);
+        Destroy(ghostObj);
     }
 }

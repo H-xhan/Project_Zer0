@@ -163,12 +163,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4c149ed2d4e79444b5debc25b118cb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSkinnedMesh: {fileID: 216671440}
+  sourceRenderer: {fileID: 216671440}
   ghostMaterial: {fileID: 2100000, guid: 6f3246826d8e80e4e9e355d7eee82a6c, type: 2}
-  ghostColor: {r: 0, g: 1, b: 1, a: 0.4509804}
-  snapshotInterval: 0.05
   ghostLifetime: 2
-  poolSize: 30
+  trailSpawnInterval: 0.08
 --- !u!1 &49114780
 GameObject:
   m_ObjectHideFlags: 0
@@ -1276,13 +1274,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetRenderers:
-  - {fileID: 0}
-  stealthSpeedMultiplier: 0.7
-  visibleAlpha: 1
-  invisibleAlpha: 0.1
-  fadeSpeed: 3
-  isInvisible: 0
-  ghostTrailEffect: {fileID: 654027991}
+  - {fileID: 216671440}
+  stealthAlpha: 0.3
+  fadeOutDuration: 0.25
+  fadeInDuration: 0.2
 --- !u!1 &677958693
 GameObject:
   m_ObjectHideFlags: 0
