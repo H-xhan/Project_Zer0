@@ -269,7 +269,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: 0.01
   far clip plane: 1000
   field of view: 60
   orthographic: 0
@@ -453,6 +453,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 220793b03379a1843b156333238acf41, type: 3}
       insertIndex: -1
       addedObject: {fileID: 654027990}
+    - targetCorrespondingSourceObject: {fileID: -3321919801592875672, guid: 220793b03379a1843b156333238acf41, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1048688603}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 220793b03379a1843b156333238acf41, type: 3}
       insertIndex: -1
@@ -568,6 +571,7 @@ MonoBehaviour:
     paramIsTurning: IsTurning
     turnThreshold: 0.25
     turnSmoothSpeed: 10
+    paramForward: Forward
     speedToParam: 0.25
     stopSnapThreshold: 0.05
     snapOnlyWhenGrounded: 1
@@ -1804,6 +1808,37 @@ MonoBehaviour:
   m_Spacing: {x: 8, y: 8}
   m_Constraint: 1
   m_ConstraintCount: 5
+--- !u!1 &1048688602
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1048688603}
+  m_Layer: 0
+  m_Name: FPP_HeadAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1048688603
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1048688602}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1531239315}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1081740038
 GameObject:
   m_ObjectHideFlags: 0
@@ -2353,6 +2388,11 @@ MonoBehaviour:
     m_Bits: 128
   maxLockDistance: 50
   fireOrigin: {fileID: 0}
+--- !u!4 &1531239315 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3321919801592875672, guid: 220793b03379a1843b156333238acf41, type: 3}
+  m_PrefabInstance: {fileID: 195545229}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1548482539
 GameObject:
   m_ObjectHideFlags: 0
@@ -2658,9 +2698,9 @@ MonoBehaviour:
   minPitch: -40
   maxPitch: 70
   lockCursor: 1
-  firstPersonAnchor: {fileID: 1185552487}
+  firstPersonAnchor: {fileID: 1048688603}
   thirdPersonAnchor: {fileID: 1291874107}
-  firstPersonOffset: {x: 0, y: 0, z: 0}
+  firstPersonOffset: {x: 0, y: 0.05, z: 0.15}
   thirdPersonOffset: {x: 0, y: 1, z: -3.5}
   followLerp: 15
   firstPersonMask:
@@ -3349,6 +3389,10 @@ PrefabInstance:
     - target: {fileID: 919132149155446097, guid: 1841c298173cdad4db8df8602c8f1c8d, type: 3}
       propertyPath: m_Layer
       value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 1841c298173cdad4db8df8602c8f1c8d, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 1841c298173cdad4db8df8602c8f1c8d, type: 3}
       propertyPath: m_TagString
