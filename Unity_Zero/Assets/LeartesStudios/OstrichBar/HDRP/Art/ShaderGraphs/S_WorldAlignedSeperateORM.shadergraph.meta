@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: a38114c69460a9a49a45f45c7e1769c3
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 216650
+  packageName: Cyberpunk Night Club Environment
+  packageVersion: 2.0
+  assetPath: Assets/LeartesStudios/OstrichBar/HDRP/Art/ShaderGraphs/S_WorldAlignedSeperateORM.shadergraph
+  uploadId: 599955

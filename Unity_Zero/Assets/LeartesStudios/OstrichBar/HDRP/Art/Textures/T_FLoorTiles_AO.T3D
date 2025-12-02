@@ -1,0 +1,13 @@
+Begin Object Class=/Script/Engine.Texture2D Name="T_FLoorTiles_AO"
+   Begin Object Class=/Script/Engine.AssetImportData Name="AssetImportData"
+   End Object
+   Begin Object Name="AssetImportData"
+   End Object
+   ImportedSize=(X=2048,Y=2048)
+   Source=(Id=2F7CD6884B4582C6BBEB54BC4F426BC2,SizeX=2048,SizeY=2048,NumSlices=1,NumMips=1,bPNGCompressed=True,Format=TSF_G8)
+   LightingGuid=FF7FE90B4C5ECEC543327ABD42090EA5
+   AssetImportData=AssetImportData'"AssetImportData"'
+   AlphaCoverageThresholds=(X=0.000000,Y=0.000000,Z=0.000000,W=1.000000)
+   CompressionSettings=TC_Grayscale
+   SRGB=False
+End Object
