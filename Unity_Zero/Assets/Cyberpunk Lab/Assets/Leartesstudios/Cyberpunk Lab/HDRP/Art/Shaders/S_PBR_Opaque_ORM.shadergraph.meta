@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: bdc8b821e6ca8fe4c9dc3799748fc3f4
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 214869
+  packageName: CyberPunk Laboratory / Research Center Interior Kitbash
+  packageVersion: 2.2
+  assetPath: Assets/Cyberpunk Lab/Assets/Leartesstudios/Cyberpunk Lab/HDRP/Art/Shaders/S_PBR_Opaque_ORM.shadergraph
+  uploadId: 677048

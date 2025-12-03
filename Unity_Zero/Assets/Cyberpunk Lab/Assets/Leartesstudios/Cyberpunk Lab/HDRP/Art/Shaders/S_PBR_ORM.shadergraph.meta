@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 3dc1d5c37ff71e249a715545be740c97
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 214869
+  packageName: CyberPunk Laboratory / Research Center Interior Kitbash
+  packageVersion: 2.2
+  assetPath: Assets/Cyberpunk Lab/Assets/Leartesstudios/Cyberpunk Lab/HDRP/Art/Shaders/S_PBR_ORM.shadergraph
+  uploadId: 677048

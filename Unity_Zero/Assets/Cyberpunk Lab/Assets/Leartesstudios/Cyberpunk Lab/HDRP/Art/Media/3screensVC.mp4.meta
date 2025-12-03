@@ -1,0 +1,25 @@
+fileFormatVersion: 2
+guid: fe3ec1891e638fa44935aea5446d1c83
+AssetOrigin:
+  serializedVersion: 1
+  productId: 214869
+  packageName: CyberPunk Laboratory / Research Center Interior Kitbash
+  packageVersion: 2.2
+  assetPath: Assets/Cyberpunk Lab/Assets/Leartesstudios/Cyberpunk Lab/HDRP/Art/Media/3screensVC.mp4
+  uploadId: 677048
+VideoClipImporter:
+  externalObjects: {}
+  serializedVersion: 3
+  frameRange: 0
+  startFrame: -1
+  endFrame: -1
+  colorSpace: 0
+  deinterlace: 0
+  encodeAlpha: 0
+  flipVertical: 0
+  flipHorizontal: 0
+  importAudio: 1
+  targetSettings: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

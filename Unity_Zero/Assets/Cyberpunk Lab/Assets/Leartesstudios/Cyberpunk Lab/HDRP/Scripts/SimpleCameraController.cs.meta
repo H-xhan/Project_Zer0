@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 879006f7f3098244b91a92750ec413b4
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 214869
+  packageName: CyberPunk Laboratory / Research Center Interior Kitbash
+  packageVersion: 2.2
+  assetPath: Assets/Cyberpunk Lab/Assets/Leartesstudios/Cyberpunk Lab/HDRP/Scripts/SimpleCameraController.cs
+  uploadId: 677048
